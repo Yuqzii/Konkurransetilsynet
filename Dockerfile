@@ -3,7 +3,7 @@ FROM golang:1.24
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
-COPY *.go ./
+COPY ./ ./
 RUN CGO_ENABLED=0 GOOD=linux go build -o /konkurransetilsynet
 
 ENTRYPOINT ["/konkurransetilsynet"]

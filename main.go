@@ -7,8 +7,11 @@ import (
 	"strings"
 	"syscall"
 	"unicode/utf8"
-
+	"fmt"
+	
 	"github.com/bwmarrin/discordgo"
+
+	"konkurransetilsynet/gjettFunksjonen"
 )
 
 const prefix string = "!"
@@ -39,6 +42,23 @@ func main() {
 			_, err := s.ChannelMessageSend(m.ChannelID, "world!")
 			if err != nil {
 				log.Fatal("Hello command failed to execute, ", err)
+			}
+		case "gjettFunksjonen":
+			log.Println("recived gjettFunksjonen command")
+			// predefined function for testing
+			function, parseError := gjettFunksjonen.MakeNewFunction("x^2 + 3x + 2")
+    		if parseError != nil {
+    		    log.Fatal("parsed function: ", err)
+    		}
+			
+			output := ""
+			output += fmt.Sprintf("f(2) = %f", function.Eval(2))
+			output += fmt.Sprintf("f(10) = %f", function.Eval(10))
+			log.Println(output)
+			
+			_, messageError := s.ChannelMessageSend(m.ChannelID, output)
+			if messageError != nil {
+				log.Fatal("gjettFunksjonen command failed to execute, ", messageError)
 			}
 		}
 	})
