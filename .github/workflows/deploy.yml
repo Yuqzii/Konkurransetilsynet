@@ -5,13 +5,13 @@ on:
     branches: [ main ]
 
 jobs:
-  run:
+  Deploy:
     runs-on: self-hosted
     
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Container
+      - name: Run bot
         run: docker compose up -d --build
         env:
           TOKEN: ${{ secrets.TOKEN }}
