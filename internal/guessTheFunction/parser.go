@@ -1,4 +1,4 @@
-package gjettFunksjonen
+package guessTheFunction
 
 import (
     "errors"

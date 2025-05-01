@@ -1,4 +1,4 @@
-package gjettFunksjonen
+package guessTheFunction
 
 // Function is a parsed, evaluable function
 type Function struct {

@@ -1,9 +1,12 @@
 FROM golang:1.24
 
 WORKDIR /app
+
 COPY go.mod go.sum ./
 RUN go mod download
-COPY ./ ./
-RUN CGO_ENABLED=0 GOOD=linux go build -o /konkurransetilsynet
+
+COPY . ./
+
+RUN CGO_ENABLED=0 GOOD=linux go build -o /konkurransetilsynet ./cmd/
 
 ENTRYPOINT ["/konkurransetilsynet"]
