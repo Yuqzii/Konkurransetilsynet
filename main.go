@@ -35,8 +35,11 @@ func main() {
 		command := strings.TrimPrefix(args[0], prefix)
 
 		switch command {
-			case "hello":
-				s.ChannelMessageSend(m.ChannelID, "world!")
+		case "hello":
+			_, err := s.ChannelMessageSend(m.ChannelID, "world!")
+			if err != nil {
+				log.Fatal("Hello command failed to execute, ", err)
+			}
 		}
 	})
 
@@ -46,7 +49,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer session.Close() // Close session when application exits
+
+	defer func() {
+		err = session.Close() // Close session when application exits
+	}()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	log.Println("Bot is online")
 
