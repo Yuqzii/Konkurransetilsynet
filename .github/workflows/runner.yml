@@ -1,0 +1,20 @@
+name: Run bot
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  run:
+    runs-on: self-hosted
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Container
+        run: docker compose up -d --build
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+
+      - name: Clean up unused images
+        run: docker image prune -f
