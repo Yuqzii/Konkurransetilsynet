@@ -4,10 +4,14 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"unicode/utf8"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+const prefix string = "!"
 
 func main() {
 	token := os.Getenv("TOKEN")
@@ -22,8 +26,17 @@ func main() {
 			return
 		}
 
-		if m.Content == "hello" {
-			s.ChannelMessageSend(m.ChannelID, "world!")
+		if string(m.Content[0:utf8.RuneCountInString(prefix)]) != prefix {
+			return
+		}
+		
+		// Get message arguments separated by space
+		args := strings.Split(m.Content, " ")
+		command := strings.TrimPrefix(args[0], prefix)
+
+		switch command {
+			case "hello":
+				s.ChannelMessageSend(m.ChannelID, "world!")
 		}
 	})
 
