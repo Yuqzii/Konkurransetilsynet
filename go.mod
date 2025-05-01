@@ -1,4 +1,4 @@
-module github.com/yuqzii/konkurransetilsynet/cmd
+module github.com/yuqzii/konkurransetilsynet
 
 go 1.22.2
 
