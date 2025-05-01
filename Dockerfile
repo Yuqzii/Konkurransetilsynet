@@ -7,6 +7,6 @@ RUN go mod download
 
 COPY . ./
 
-RUN CGO_ENABLED=0 GOOD=linux go build -o /konkurransetilsynet
+RUN CGO_ENABLED=0 GOOD=linux go build -o /konkurransetilsynet ./cmd/
 
 ENTRYPOINT ["/konkurransetilsynet"]
