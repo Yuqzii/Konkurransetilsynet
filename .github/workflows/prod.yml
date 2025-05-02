@@ -1,0 +1,11 @@
+name: Deploy to production
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  Deploy:
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: "production"

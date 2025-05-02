@@ -1,19 +1,25 @@
 name: Deploy
 
 on:
-  push:
-    branches: [ main, develop ]
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      compose_flag:
+        required: false
+        type: string
 
 jobs:
   Deploy:
     runs-on: self-hosted
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' }}
+    environment: ${{ inputs.environment }}
     
     steps:
       - uses: actions/checkout@v4
 
       - name: Run bot
-        run: docker compose up -d --build
+        run: docker compose ${{ inputs.compose_flag }} up -d --build
         env:
           TOKEN: ${{ secrets.TOKEN }}
 

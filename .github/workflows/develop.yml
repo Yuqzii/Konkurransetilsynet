@@ -1,0 +1,12 @@
+name: Deploy to develop
+
+on:
+  push:
+    branches: [ develop ]
+
+jobs:
+  Deploy:
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: "development"
+      compose_flag: "-f docker-compose_dev.yml"
