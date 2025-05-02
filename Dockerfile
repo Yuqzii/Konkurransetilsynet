@@ -9,4 +9,5 @@ COPY . ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /konkurransetilsynet ./cmd/
 
-ENTRYPOINT ["/konkurransetilsynet"]
+#ENTRYPOINT ["/konkurransetilsynet"]
+CMD ["/konkurransetilsynet"]
