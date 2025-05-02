@@ -15,6 +15,9 @@ jobs:
       - name: Stop previously running bot
         run: docker stop konkurransetilsynet-dev
 
+      - name: Remove previous bot
+        run: docker rm konkurransetilsynet-dev
+
       - name: Deploy bot
         run: docker compose -f docker-compose_dev.yml up -d --build
         env:
