@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -10,7 +9,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/yuqzii/konkurransetilsynet/internal"
-	"github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -68,21 +66,9 @@ func onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			log.Fatal("Hello command failed to execute, ", err)
 		}
 	case "guessTheFunction":
-		log.Println("recived guessTheFunction command")
-		// predefined function for testing
-		function, parseError := guessTheFunction.MakeNewFunction("x^2 + 3x + 2")
-		if parseError != nil {
-			log.Fatal("error parsing function: ", parseError)
-		}
-
-		output := ""
-		output += fmt.Sprintf("f(2) = %f", function.Eval(2))
-		output += fmt.Sprintf("f(10) = %f", function.Eval(10))
-		log.Println(output)
-
-		_, messageError := s.ChannelMessageSend(m.ChannelID, output)
-		if messageError != nil {
-			log.Fatal("guessTheFunction command failed to execute, ", messageError)
+		err := messageCommands.GuessTheFunction(s, m, args)
+		if err != nil {
+			log.Fatal("Hello command failed to execute, ", err)
 		}
 	}
 }

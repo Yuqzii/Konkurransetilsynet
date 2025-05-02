@@ -47,3 +47,7 @@ jobs:
         
       - name: Build
         run: go build -o /dev/null ./...
+        
+      - name: Test
+        run: go test ./...
+        continue-on-error: true
