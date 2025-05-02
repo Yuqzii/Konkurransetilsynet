@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
-	
+
 	"github.com/bwmarrin/discordgo"
 )
 
