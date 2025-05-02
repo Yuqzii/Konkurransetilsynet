@@ -85,7 +85,7 @@ func TestMakeNewFunction_Linear(t *testing.T) {
 
 		expectedFunction := testData.answer
 		returnedCorrectValues = true
-		
+
 		for i := 0; i < numberSamplesPerFunctionTest; i++ {
 			x := rand.Float64() * 100
 			difference := math.Abs(parsedFunction.Eval(x) - expectedFunction.Eval(x))
