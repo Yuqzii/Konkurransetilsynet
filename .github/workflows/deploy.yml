@@ -1,12 +1,13 @@
-name: Run bot
+name: Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 jobs:
   Deploy:
     runs-on: self-hosted
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || github.ref == 'refs/heads/develop' && 'development' }}
     
     steps:
       - uses: actions/checkout@v4
