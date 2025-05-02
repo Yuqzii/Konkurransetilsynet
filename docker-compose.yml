@@ -1,6 +1,6 @@
 services:
   main:
-    build: .
+    build: ./
     container_name: konkurransetilsynet
     tty: true
     environment:
