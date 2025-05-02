@@ -1,24 +1,24 @@
-name: Deploy to development
+name: Deploy to production
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ main ]
 
 jobs:
   Deploy:
     runs-on: self-hosted
-    environment: "development"
+    environment: "production"
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Stop previously running bot
-        run: docker stop konkurransetilsynet-dev
+        run: docker stop konkurransetilsynet
 
       - name: Remove previous bot
-        run: docker rm konkurransetilsynet-dev
+        run: docker rm konkurransetilsynet
 
       - name: Deploy bot
-        run: docker compose -f docker-compose_dev.yml up -d --build
+        run: docker compose up -d --build
         env:
           TOKEN: ${{ secrets.TOKEN }}

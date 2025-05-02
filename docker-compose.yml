@@ -2,5 +2,5 @@ services:
   main:
     build: ./
     container_name: konkurransetilsynet
-    env_file:
-      - .env
+    environment:
+      - TOKEN=${TOKEN}
