@@ -62,18 +62,18 @@ func GenerateAST(tokens []Token) (Expr, error) {
 	if len(tokens) == 1 {
 		token := tokens[0]
 
-        switch token.Type {
-		case VARIABLE_TOKEN: 
+		switch token.Type {
+		case VARIABLE_TOKEN:
 			return Variable{}, nil
-        case NUMBER_TOKEN:
+		case NUMBER_TOKEN:
 			value, parsErr := strconv.ParseFloat(token.Value, 64)
 			if parsErr != nil {
 				return nil, fmt.Errorf("unable to parse float, %s", token.Value)
 			}
 			return Number{Value: value}, nil
-        default:
-            return nil, fmt.Errorf("unsupported token type in AST generation, %d", token.Type)
-        }
+		default:
+			return nil, fmt.Errorf("unsupported token type in AST generation, %d", token.Type)
+		}
 	}
 
 	i := 0
