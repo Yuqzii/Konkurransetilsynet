@@ -81,18 +81,21 @@ func TestMakeNewFunction_Linear(t *testing.T) {
 		if err != nil {
 			t.Fatal("unexpected error on function idx,", index, "error,", err)
 		}
-		
+
+		expectedFunction := testData.answer
+
 		expectedFunction := testData.answer
 		returnedCorrectValues := true
 
 		for i := 0; i < numberSamplesPerFunctionTest; i++ {
 			x := rand.Float64() * 100
 			difference := math.Abs(parsedFunction.Eval(x) - expectedFunction.Eval(x))
+			difference := math.Abs(parsedFunction.Eval(x) - expectedFunction.Eval(x))
 
 			if difference > maxTolerableError {
 				returnedCorrectValues = false
-			} 
-		}  
+			}
+		}
 
 		if !returnedCorrectValues {
 			t.Fatal("failed on test idx", index, "function,", testData.input)
