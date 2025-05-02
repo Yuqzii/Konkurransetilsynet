@@ -12,6 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Stop previously running bot
+        run: docker stop konkurransetilsynet-dev
+
       - name: Deploy bot
         run: docker compose -f docker-compose_dev.yml up -d --build
         env:
