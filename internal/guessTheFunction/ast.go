@@ -10,7 +10,7 @@ type Number struct {
 	Value float64
 }
 
-type Variable struct {}
+type Variable struct{}
 
 type Add struct {
 	Left, Right Expr
@@ -31,7 +31,6 @@ type Divide struct {
 type Power struct {
 	Base, Exponent Expr
 }
-
 
 func (n Number) Eval(x float64) float64 {
 	return n.Value
