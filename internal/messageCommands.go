@@ -20,7 +20,7 @@ func GuessTheFunction(s *discordgo.Session, m *discordgo.MessageCreate, args []s
 	function, parseError := guessTheFunction.MakeNewFunction(args[1])
 	if parseError != nil {
 		log.Fatal("error parsing function: ", parseError)
-		return fmt.Errorf("error parsing function: ", parseError)
+		return fmt.Errorf("error parsing function: %s", parseError)
 	}
 
 	output := ""
@@ -31,7 +31,7 @@ func GuessTheFunction(s *discordgo.Session, m *discordgo.MessageCreate, args []s
 	_, messageError := s.ChannelMessageSend(m.ChannelID, output)
 	if messageError != nil {
 		log.Fatal("guessTheFunction command failed to execute, ", messageError)
-		return fmt.Errorf("guessTheFunction command failed to execute, ", messageError)
+		return fmt.Errorf("guessTheFunction command failed to execute, %s", messageError)
 	}
 
 	return nil
