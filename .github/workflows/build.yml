@@ -24,8 +24,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
-      - name: Create local branch
-        run: git checkout -b pr-branch
       - name: install Go
         uses: actions/setup-go@v5
         with:
@@ -39,7 +37,6 @@ jobs:
         uses: EndBug/add-and-commit@v9
         with:
           message: "chore: fix formatting"
-          push: origin HEAD:${{ github.event.pull_request.head.ref }}
           
       - name: Go Vet
         run: go vet ./...
