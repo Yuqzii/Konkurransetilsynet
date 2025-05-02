@@ -1,6 +1,8 @@
 services:
   main:
-    build: .
+    build:
+      context: .
+      Dockerfile: ./Dockerfile
     container_name: konkurransetilsynet-dev
     tty: true
     environment:
