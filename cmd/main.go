@@ -21,7 +21,7 @@ func main() {
 	token := os.Getenv("TOKEN")
 	session, err := discordgo.New("Bot " + token)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Could not create bot, ", err)
 	}
 
 	session.AddHandler(onMessageCreate)
@@ -30,7 +30,7 @@ func main() {
 
 	err = session.Open()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Could not open session, ", err)
 	}
 
 	defer func() {
