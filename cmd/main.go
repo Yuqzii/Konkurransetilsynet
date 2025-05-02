@@ -30,7 +30,7 @@ func main() {
 
 	err = session.Open()
 	if err != nil {
-		log.Fatal("Could not open session with token ", token, "\n", err)
+		log.Fatal("Could not open session with token ", err)
 	}
 
 	defer func() {
