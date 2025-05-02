@@ -1,18 +1,19 @@
 package main
 
 import (
-	"fmt"
+    "fmt"
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"unicode/utf8"
 
 	"github.com/yuqzii/konkurransetilsynet/internal"
-	"github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
 
 	"github.com/bwmarrin/discordgo"
+
+	"strings"
+	"github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
 )
 
 const prefix string = "!"
@@ -21,12 +22,11 @@ func main() {
 	token := os.Getenv("TOKEN")
 	session, err := discordgo.New("Bot " + token)
 	if err != nil {
-		log.Fatal(err)
-	}
+		log.Fatal(err) }
 
 	session.AddHandler(onMessageCreate)
 
-	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
+	session.Identify.Intents= discordgo.IntentsAllWithoutPrivileged
 
 	err = session.Open()
 	if err != nil {
@@ -46,13 +46,11 @@ func main() {
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 }
-
 func onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Don't react to messages from this bot
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
-
 	if string(m.Content[0:utf8.RuneCountInString(prefix)]) != prefix {
 		return
 	}
