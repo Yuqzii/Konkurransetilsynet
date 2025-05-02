@@ -1,4 +1,2 @@
 This is for testing the new ci feature.
 Delete this file.
-
-sjdk
