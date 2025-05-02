@@ -1,3 +1,6 @@
 services:
   main:
+    build: .
     container_name: konkurransetilsynet-dev
+    environment:
+      - TOKEN=${TOKEN}

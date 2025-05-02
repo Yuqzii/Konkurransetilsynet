@@ -9,4 +9,4 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     with:
       environment: "development"
-      compose_flag: "-f docker-compose.yml -f docker-compose_dev.yml"
+      compose_flag: "-f docker-compose_dev.yml"
