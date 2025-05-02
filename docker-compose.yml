@@ -2,5 +2,6 @@ services:
   main:
     build: .
     container_name: konkurransetilsynet
+    tty: true
     environment:
       - TOKEN=${TOKEN}
