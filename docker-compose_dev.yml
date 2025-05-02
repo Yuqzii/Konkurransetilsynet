@@ -3,5 +3,6 @@ services:
     build: .
     container_name: konkurransetilsynet-dev
     tty: true
+    command: "tail -f /dev/null"
     environment:
       - TOKEN=${TOKEN}
