@@ -1,7 +1,7 @@
 package main
 
 import (
-    "fmt"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -12,8 +12,8 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"strings"
 	"github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
+	"strings"
 )
 
 const prefix string = "!"
@@ -22,11 +22,12 @@ func main() {
 	token := os.Getenv("TOKEN")
 	session, err := discordgo.New("Bot " + token)
 	if err != nil {
-		log.Fatal(err) }
+		log.Fatal(err)
+	}
 
 	session.AddHandler(onMessageCreate)
 
-	session.Identify.Intents= discordgo.IntentsAllWithoutPrivileged
+	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
 
 	err = session.Open()
 	if err != nil {
