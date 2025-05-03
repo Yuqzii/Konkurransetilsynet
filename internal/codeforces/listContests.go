@@ -43,10 +43,10 @@ func listFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 	}
 
 	embed := discordgo.MessageEmbed{
-		Title:       "Upcoming Codeforces contests",
-		URL:		 "https://codeforces.com/contests",
-		Color:       0x50e6ac,
-		Timestamp:   time.Now().Format(time.RFC3339),
+		Title:     "Upcoming Codeforces contests",
+		URL:       "https://codeforces.com/contests",
+		Color:     0x50e6ac,
+		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
 	// Add embed for each contest that is not finished
@@ -61,7 +61,7 @@ func listFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name: contest.Name,
 				Value: fmt.Sprintf("In progress, ends <t:%d:F>",
-					contest.StartTimeSeconds + contest.DurationSeconds),
+					contest.StartTimeSeconds+contest.DurationSeconds),
 				Inline: true,
 			})
 		}
