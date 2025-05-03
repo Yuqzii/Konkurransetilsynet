@@ -42,28 +42,33 @@ func listFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 		return err
 	}
 
-	// Find all contests that are not yet finished
-	var futureContests []Contest
-	for _, contest := range contests.Contests {
-		if contest.Phase == "BEFORE" || contest.Phase == "CODING" {
-			futureContests = append(futureContests, contest)
-		}
-	}
-
 	embed := discordgo.MessageEmbed{
-		Title:       "Upcoming Codeforces contests",
-		Description: "This is a list of all upcoming Codeforces contests",
-		Color:       0x50e6ac,
-		Timestamp:   time.Now().Format(time.RFC3339),
+		Title:     "Upcoming Codeforces contests",
+		URL:       "https://codeforces.com/contests",
+		Color:     0x50e6ac,
+		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
-	// Add an embed field for each upcoming contest
-	for _, contest := range futureContests {
-		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
-			Name:   contest.Name,
-			Value:  fmt.Sprint(contest.StartTimeSeconds),
-			Inline: true,
-		})
+	// Add embed for each contest that is not finished
+	for _, contest := range contests.Contests {
+		switch contest.Phase {
+		case "BEFORE":
+			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+				Name:   contest.Name,
+				Value:  fmt.Sprintf("Starts <t:%d:F>", contest.StartTimeSeconds),
+				Inline: true,
+			})
+
+		case "CODING":
+			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+				Name: contest.Name,
+				Value: fmt.Sprintf("In progress, ends <t:%d:F>",
+					contest.StartTimeSeconds+contest.DurationSeconds),
+				Inline: true,
+			})
+
+		default:
+		}
 	}
 
 	_, err = session.ChannelMessageSendEmbed(message.ChannelID, &embed)
