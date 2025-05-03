@@ -51,7 +51,7 @@ func listFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 
 	// Add embed for each contest that is not finished
 	for _, contest := range contests.Contests {
-		switch (contest.Phase) {
+		switch contest.Phase {
 		case "BEFORE":
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name:   contest.Name,
