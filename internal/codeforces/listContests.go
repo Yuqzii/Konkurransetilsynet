@@ -5,8 +5,8 @@ import (
 	"io"
 	"net/http"
 	"time"
-
 	"fmt"
+
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -66,24 +66,28 @@ func listFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 		})
 	}
 
-	session.ChannelMessageSendEmbed(message.ChannelID, &embed)
+	_, err = session.ChannelMessageSendEmbed(message.ChannelID, &embed)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func getFromAPI() (*ContestList, error) {
+func getFromAPI() (contests *ContestList, err error) {
 	res, err := http.Get("https://codeforces.com/api/contest.list")
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() {
+		err = res.Body.Close()
+	}()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	var response ContestList
-	json.Unmarshal(body, &response)
+	json.Unmarshal(body, contests)
 
-	return &response, nil
+	return contests, err
 }
