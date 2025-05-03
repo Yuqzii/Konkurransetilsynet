@@ -7,7 +7,7 @@ import (
 )
 
 func HandleCodeforcesCommands(args []string, session *discordgo.Session,
-							  message * discordgo.MessageCreate) {
+	message *discordgo.MessageCreate) {
 	if args[1] == "contests" {
 		err := ListFutureContests(session, message)
 		if err != nil {

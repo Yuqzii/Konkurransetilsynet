@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bwmarrin/discordgo"
 	"fmt"
+	"github.com/bwmarrin/discordgo"
 )
 
 type ContestList struct {
-	Status string   `json:"status"`
+	Status   string    `json:"status"`
 	Contests []Contest `json:"result"`
 }
 
@@ -52,17 +52,17 @@ func ListFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 	}
 
 	embed := discordgo.MessageEmbed{
-		Title: "Upcoming Codeforces contests",
+		Title:       "Upcoming Codeforces contests",
 		Description: "This is a list of all upcoming Codeforces contests",
-		Color: 0x50e6ac,
-		Timestamp: time.Now().Format(time.RFC3339),
+		Color:       0x50e6ac,
+		Timestamp:   time.Now().Format(time.RFC3339),
 	}
 
 	// Add an embed field for each upcoming contest
 	for _, contest := range futureContests {
 		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
-			Name: contest.Name,
-			Value: fmt.Sprint(contest.StartTimeSeconds),
+			Name:   contest.Name,
+			Value:  fmt.Sprint(contest.StartTimeSeconds),
 			Inline: true,
 		})
 	}
