@@ -2,9 +2,11 @@ package codeforces
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -13,6 +15,7 @@ import (
 type ContestList struct {
 	Status   string    `json:"status"`
 	Contests []Contest `json:"result"`
+	Comment  string    `json:"comment,omitempty"`
 }
 
 type Contest struct {
@@ -42,6 +45,10 @@ func listFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 		return err
 	}
 
+	if contests.Status == "FAILED" {
+		return errors.New(contests.Comment)
+	}
+
 	embed := discordgo.MessageEmbed{
 		Title:     "Upcoming Codeforces contests",
 		URL:       "https://codeforces.com/contests",
@@ -49,33 +56,39 @@ func listFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
-	// Add embed for each contest that is not finished
+	// Find all current or future contests
+	var upcoming []Contest
 	for _, contest := range contests.Contests {
-		switch contest.Phase {
-		case "BEFORE":
+		if contest.Phase == "BEFORE" || contest.Phase == "CODING" {
+			upcoming = append(upcoming, contest)
+		}
+	}
+
+	// Sort upcoming contests by starting time
+	sort.Slice(upcoming, func(i, j int) bool {
+		return upcoming[i].StartTimeSeconds < upcoming[j].StartTimeSeconds
+	})
+
+	// Add embed for each contest
+	for _, contest := range upcoming {
+		if contest.Phase == "BEFORE" {
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name:   contest.Name,
 				Value:  fmt.Sprintf("Starts <t:%d:F>", contest.StartTimeSeconds),
 				Inline: true,
 			})
-
-		case "CODING":
+		} else {
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name: contest.Name,
 				Value: fmt.Sprintf("In progress, ends <t:%d:F>",
 					contest.StartTimeSeconds+contest.DurationSeconds),
 				Inline: true,
 			})
-
-		default:
 		}
 	}
 
 	_, err = session.ChannelMessageSendEmbed(message.ChannelID, &embed)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func getFromAPI() (contests *ContestList, err error) {
