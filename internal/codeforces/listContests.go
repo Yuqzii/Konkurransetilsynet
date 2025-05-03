@@ -2,10 +2,10 @@ package codeforces
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
-	"fmt"
 
 	"github.com/bwmarrin/discordgo"
 )
