@@ -37,11 +37,10 @@ type Contest struct {
 	FreezeDurationSeconds int    `json:"freezeDurationSeconds,omitempty"`
 }
 
-func ListFutureContests(session *discordgo.Session, message *discordgo.MessageCreate) {
+func ListFutureContests(session *discordgo.Session, message *discordgo.MessageCreate) error {
 	contests, err := GetFromAPI()
 	if err != nil {
-		log.Println("Could not get contest list from Codeforces API, ", err)
-		return
+		return err
 	}
 
 	// Find all contests that are not yet finished
@@ -69,6 +68,7 @@ func ListFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 	}
 
 	session.ChannelMessageSendEmbed(message.ChannelID, &embed)
+	return nil
 }
 
 func GetFromAPI() (*ContestList, error) {
