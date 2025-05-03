@@ -79,7 +79,9 @@ func getFromAPI() (contests *ContestList, err error) {
 		return nil, err
 	}
 	defer func() {
-		err = res.Body.Close()
+		if err == nil {
+			err = res.Body.Close()
+		}
 	}()
 
 	body, err := io.ReadAll(res.Body)
