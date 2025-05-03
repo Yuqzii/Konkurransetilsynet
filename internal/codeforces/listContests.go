@@ -3,7 +3,6 @@ package codeforces
 import (
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
@@ -37,8 +36,8 @@ type Contest struct {
 	FreezeDurationSeconds int    `json:"freezeDurationSeconds,omitempty"`
 }
 
-func ListFutureContests(session *discordgo.Session, message *discordgo.MessageCreate) error {
-	contests, err := GetFromAPI()
+func listFutureContests(session *discordgo.Session, message *discordgo.MessageCreate) error {
+	contests, err := getFromAPI()
 	if err != nil {
 		return err
 	}
@@ -71,7 +70,7 @@ func ListFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 	return nil
 }
 
-func GetFromAPI() (*ContestList, error) {
+func getFromAPI() (*ContestList, error) {
 	res, err := http.Get("https://codeforces.com/api/contest.list")
 	if err != nil {
 		return nil, err
