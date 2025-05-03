@@ -51,19 +51,23 @@ func listFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 
 	// Add embed for each contest that is not finished
 	for _, contest := range contests.Contests {
-		if contest.Phase == "BEFORE" {
+		switch (contest.Phase) {
+		case "BEFORE":
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name:   contest.Name,
 				Value:  fmt.Sprintf("Starts <t:%d:F>", contest.StartTimeSeconds),
 				Inline: true,
 			})
-		} else if contest.Phase == "CODING" {
+
+		case "CODING":
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name: contest.Name,
 				Value: fmt.Sprintf("In progress, ends <t:%d:F>",
 					contest.StartTimeSeconds+contest.DurationSeconds),
 				Inline: true,
 			})
+
+		default:
 		}
 	}
 
