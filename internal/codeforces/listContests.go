@@ -87,7 +87,7 @@ func getFromAPI() (contests *ContestList, err error) {
 		return nil, err
 	}
 
-	json.Unmarshal(body, contests)
+	err = json.Unmarshal(body, contests)
 
 	return contests, err
 }
