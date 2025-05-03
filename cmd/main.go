@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/yuqzii/konkurransetilsynet/internal"
+	"github.com/yuqzii/konkurransetilsynet/internal/codeforces"
 	"github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
 
 	"github.com/bwmarrin/discordgo"
@@ -67,6 +68,10 @@ func onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if err != nil {
 			log.Fatal("Hello command failed to execute, ", err)
 		}
+
+	case "cf":
+		codeforces.HandleCodeforcesCommands(args, s, m)
+
 	case "guessTheFunction":
 		log.Println("recived guessTheFunction command")
 		// predefined function for testing
