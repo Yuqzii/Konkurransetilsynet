@@ -74,13 +74,13 @@ func listFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 		if contest.Phase == "BEFORE" {
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name:   contest.Name,
-				Value:  fmt.Sprintf("Starts <t:%d:F>", contest.StartTimeSeconds),
+				Value:  fmt.Sprintf("Starts <t:%d:R>", contest.StartTimeSeconds),
 				Inline: true,
 			})
 		} else {
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name: contest.Name,
-				Value: fmt.Sprintf("In progress, ends <t:%d:F>",
+				Value: fmt.Sprintf("In progress, ends <t:%d:R>",
 					contest.StartTimeSeconds+contest.DurationSeconds),
 				Inline: true,
 			})
