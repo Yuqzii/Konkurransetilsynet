@@ -25,7 +25,10 @@ func main() {
 		log.Fatal("Could not create bot, ", err)
 	}
 
-	cfManager := codeforces.MakeManager()
+	cfManager, err := codeforces.NewManager(session)
+	if err != nil {
+		log.Fatal("Could not create Codeforces manager,", err)
+	}
 
 	session.AddHandler(func(session *discordgo.Session, message *discordgo.MessageCreate) {
 		// Don't react to messages from this bot

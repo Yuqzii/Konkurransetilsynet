@@ -42,13 +42,18 @@ type contest struct {
 
 type manager struct {
 	upcomingContests []contest
+	pingChannelIDs []string
 }
 
-func MakeManager() manager {
-	man := manager{}
+func NewManager(session *discordgo.Session) (*manager, error) {
+	man := new(manager)
 	man.startContestUpdate()
 	man.startContestPingCheck()
-	return man
+	err := man.initPingChannel(session)
+	if err != nil {
+		return nil, err
+	}
+	return man, nil
 }
 
 func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.Session,

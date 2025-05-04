@@ -1,6 +1,10 @@
 package codeforces
 
-import "time"
+import (
+	"time"
+
+	"github.com/bwmarrin/discordgo"
+)
 
 const pingTime int = 1 * 3600 // 1 hour
 
@@ -25,4 +29,45 @@ func (man *manager) checkContestPing() {
 
 func contestPing(contest *contest) {
 	contest.Pinged = true
+}
+
+func (man *manager) initPingChannel(session *discordgo.Session) error {
+	const channelName string = "contest-pings"
+
+	// Clear pingChannelIDs of possible existing IDs
+	man.pingChannelIDs = nil
+
+	for _, guild := range session.State.Guilds {
+		channels, err := session.GuildChannels(guild.ID)
+		if err != nil {
+			return err
+		}
+
+		pingChannel := ""
+		for _, channel := range channels {
+			// Skip non-text channels
+			if channel.Type != discordgo.ChannelTypeGuildText {
+				continue
+			}
+
+			if channel.Name == channelName {
+				pingChannel = channel.ID
+				break
+			}
+		}
+
+		if pingChannel == "" {
+			// The server does not have a ping channel
+			newChannel, err := session.GuildChannelCreate(guild.ID, channelName, discordgo.ChannelTypeGuildText)
+			if err != nil {
+				return err
+			}
+			
+			pingChannel = newChannel.ID
+		}
+
+		man.pingChannelIDs = append(man.pingChannelIDs, pingChannel)
+	}
+
+	return nil
 }
