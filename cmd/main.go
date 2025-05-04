@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -66,28 +65,19 @@ func onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	case "hello":
 		err := messageCommands.Hello(s, m)
 		if err != nil {
-			log.Fatal("Hello command failed to execute, ", err)
+			log.Println("Hello command failed to execute, ", err)
 		}
 
 	case "cf":
 		codeforces.HandleCodeforcesCommands(args, s, m)
 
 	case "guessTheFunction":
-		log.Println("recived guessTheFunction command")
-		// predefined function for testing
-		function, parseError := guessTheFunction.MakeNewFunction("x^2 + 3x + 2")
-		if parseError != nil {
-			log.Fatal("error parsing function: ", parseError)
-		}
+		guessTheFunction.HandleGuessTheFunctionCommands(args, s, m)
 
-		output := ""
-		output += fmt.Sprintf("f(2) = %f", function.Eval(2))
-		output += fmt.Sprintf("f(10) = %f", function.Eval(10))
-		log.Println(output)
-
-		_, messageError := s.ChannelMessageSend(m.ChannelID, output)
-		if messageError != nil {
-			log.Fatal("guessTheFunction command failed to execute, ", messageError)
+	default:
+		err := messageCommands.UnknownCommand(s, m)
+		if err != nil {
+			log.Println("Unknown command failed to execute, ", err)
 		}
 	}
 }
