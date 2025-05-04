@@ -7,13 +7,13 @@ import (
 )
 
 type Manager struct {
-	upcomingContests []Contest
+	upcomingContests []contest
 }
 
 func (manager *Manager) HandleCodeforcesCommands(args []string, session *discordgo.Session,
 	message *discordgo.MessageCreate) {
 	if args[1] == "contests" {
-		err := listFutureContests(manager, session, message)
+		err := manager.listFutureContests(session, message)
 		if err != nil {
 			log.Println("Listing future Codeforces contests failed, ", err)
 		}

@@ -12,13 +12,13 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-type ContestList struct {
+type contestList struct {
 	Status   string    `json:"status"`
-	Contests []Contest `json:"result"`
+	Contests []contest `json:"result"`
 	Comment  string    `json:"comment,omitempty"`
 }
 
-type Contest struct {
+type contest struct {
 	ID                    int    `json:"id"`
 	Name                  string `json:"name"`
 	Type                  string `json:"type"`
@@ -39,7 +39,7 @@ type Contest struct {
 	FreezeDurationSeconds int    `json:"freezeDurationSeconds,omitempty"`
 }
 
-func listFutureContests(manager *Manager, session *discordgo.Session,
+func (manager *Manager) listFutureContests(session *discordgo.Session,
 	message *discordgo.MessageCreate) error {
 
 	contests, err := getFromAPI()
@@ -59,7 +59,7 @@ func listFutureContests(manager *Manager, session *discordgo.Session,
 	}
 
 	// Find all current or future contests
-	var upcoming []Contest
+	var upcoming []contest
 	for _, contest := range contests.Contests {
 		if contest.Phase == "BEFORE" || contest.Phase == "CODING" {
 			upcoming = append(upcoming, contest)
@@ -95,7 +95,7 @@ func listFutureContests(manager *Manager, session *discordgo.Session,
 	return err
 }
 
-func getFromAPI() (contests *ContestList, err error) {
+func getFromAPI() (contests *contestList, err error) {
 	res, err := http.Get("https://codeforces.com/api/contest.list")
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func getFromAPI() (contests *ContestList, err error) {
 		return nil, err
 	}
 
-	var contestList ContestList
+	var contestList contestList
 	err = json.Unmarshal(body, &contestList)
 
 	return &contestList, err

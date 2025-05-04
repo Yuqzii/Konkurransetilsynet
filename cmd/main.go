@@ -25,7 +25,52 @@ func main() {
 		log.Fatal("Could not create bot, ", err)
 	}
 
-	session.AddHandler(onMessageCreate)
+	cfManager := codeforces.Manager{}
+
+	session.AddHandler(func(session *discordgo.Session, message *discordgo.MessageCreate) {
+		// Don't react to messages from this bot
+		if message.Author.ID == session.State.User.ID {
+			return
+		}
+
+		// Don't react to messages without the prefix
+		if string(message.Content[0:utf8.RuneCountInString(prefix)]) != prefix {
+			return
+		}
+
+		// Get message arguments separated by space
+		args := strings.Split(message.Content, " ")
+		command := strings.TrimPrefix(args[0], prefix)
+
+		switch command {
+		case "hello":
+			err := messageCommands.Hello(session, message)
+			if err != nil {
+				log.Fatal("Hello command failed to execute, ", err)
+			}
+
+		case "cf":
+			cfManager.HandleCodeforcesCommands(args, session, message)
+
+		case "guessTheFunction":
+			log.Println("recived guessTheFunction command")
+			// predefined function for testing
+			function, parseError := guessTheFunction.MakeNewFunction("x^2 + 3x + 2")
+			if parseError != nil {
+				log.Fatal("error parsing function: ", parseError)
+			}
+
+			output := ""
+			output += fmt.Sprintf("f(2) = %f", function.Eval(2))
+			output += fmt.Sprintf("f(10) = %f", function.Eval(10))
+			log.Println(output)
+
+			_, messageError := session.ChannelMessageSend(message.ChannelID, output)
+			if messageError != nil {
+				log.Fatal("guessTheFunction command failed to execute, ", messageError)
+			}
+		}
+	})
 
 	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
 
@@ -48,46 +93,3 @@ func main() {
 	<-sc
 }
 
-func onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	// Don't react to messages from this bot
-	if m.Author.ID == s.State.User.ID {
-		return
-	}
-
-	if string(m.Content[0:utf8.RuneCountInString(prefix)]) != prefix {
-		return
-	}
-
-	// Get message arguments separated by space
-	args := strings.Split(m.Content, " ")
-	command := strings.TrimPrefix(args[0], prefix)
-
-	switch command {
-	case "hello":
-		err := messageCommands.Hello(s, m)
-		if err != nil {
-			log.Fatal("Hello command failed to execute, ", err)
-		}
-
-	case "cf":
-		codeforces.HandleCodeforcesCommands(args, s, m)
-
-	case "guessTheFunction":
-		log.Println("recived guessTheFunction command")
-		// predefined function for testing
-		function, parseError := guessTheFunction.MakeNewFunction("x^2 + 3x + 2")
-		if parseError != nil {
-			log.Fatal("error parsing function: ", parseError)
-		}
-
-		output := ""
-		output += fmt.Sprintf("f(2) = %f", function.Eval(2))
-		output += fmt.Sprintf("f(10) = %f", function.Eval(10))
-		log.Println(output)
-
-		_, messageError := s.ChannelMessageSend(m.ChannelID, output)
-		if messageError != nil {
-			log.Fatal("guessTheFunction command failed to execute, ", messageError)
-		}
-	}
-}
