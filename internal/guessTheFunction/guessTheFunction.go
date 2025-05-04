@@ -16,7 +16,7 @@ func HandleGuessTheFunctionCommands(args []string, session *discordgo.Session, m
 		return;
 	}
 
-	// Testing purpose
+	// Testing purposes
 	output := ""
 	output += fmt.Sprintf("f(2) = %f", function.Eval(2)) + "\n"
 	output += fmt.Sprintf("f(10) = %f", function.Eval(10))
