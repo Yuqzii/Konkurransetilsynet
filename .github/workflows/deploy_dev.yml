@@ -12,6 +12,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Delete previous deployments
+        uses: strumwolf/delete-deployment-environment@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          environment: "development"
+          onlyRemoveDeployments: true
+
       - name: Stop previously running bot
         run: docker stop konkurransetilsynet-dev
 
