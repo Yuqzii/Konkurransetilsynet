@@ -1,54 +1,18 @@
 package codeforces
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"sort"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-type contestList struct {
-	Status   string    `json:"status"`
-	Contests []contest `json:"result"`
-	Comment  string    `json:"comment,omitempty"`
-}
-
-type contest struct {
-	ID                    int    `json:"id"`
-	Name                  string `json:"name"`
-	Type                  string `json:"type"`
-	Phase                 string `json:"phase"`
-	Frozen                bool   `json:"frozen"`
-	DurationSeconds       int    `json:"durationSeconds"`
-	Description           string `json:"description,omitempty"`
-	Difficulty            int    `json:"difficulty,omitempty"`
-	Kind                  string `json:"kind,omitempty"`
-	Season                string `json:"season,omitempty"`
-	StartTimeSeconds      int    `json:"startTimeSeconds,omitempty"`
-	RelativeTimeSeconds   int    `json:"relativeTimeSeconds,omitempty"`
-	PreparedBy            string `json:"preparedBy,omitempty"`
-	Country               string `json:"country,omitempty"`
-	City                  string `json:"city,omitempty"`
-	IcpcRegion            string `json:"icpcRegion,omitempty"`
-	WebsiteURL            string `json:"websiteUrl,omitempty"`
-	FreezeDurationSeconds int    `json:"freezeDurationSeconds,omitempty"`
-}
-
 func (manager *Manager) listFutureContests(session *discordgo.Session,
 	message *discordgo.MessageCreate) error {
 
-	contests, err := getFromAPI()
+	err := manager.updateUpcomingContests()
 	if err != nil {
 		return err
-	}
-
-	if contests.Status == "FAILED" {
-		return errors.New(contests.Comment)
 	}
 
 	embed := discordgo.MessageEmbed{
@@ -58,23 +22,8 @@ func (manager *Manager) listFutureContests(session *discordgo.Session,
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
 
-	// Find all current or future contests
-	var upcoming []contest
-	for _, contest := range contests.Contests {
-		if contest.Phase == "BEFORE" || contest.Phase == "CODING" {
-			upcoming = append(upcoming, contest)
-		}
-	}
-
-	manager.upcomingContests = upcoming
-
-	// Sort upcoming contests by starting time
-	sort.Slice(upcoming, func(i, j int) bool {
-		return upcoming[i].StartTimeSeconds < upcoming[j].StartTimeSeconds
-	})
-
 	// Add embed for each contest
-	for _, contest := range upcoming {
+	for _, contest := range manager.upcomingContests {
 		if contest.Phase == "BEFORE" {
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name:   contest.Name,
@@ -95,24 +44,3 @@ func (manager *Manager) listFutureContests(session *discordgo.Session,
 	return err
 }
 
-func getFromAPI() (contests *contestList, err error) {
-	res, err := http.Get("https://codeforces.com/api/contest.list")
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err == nil {
-			err = res.Body.Close()
-		}
-	}()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var contestList contestList
-	err = json.Unmarshal(body, &contestList)
-
-	return &contestList, err
-}
