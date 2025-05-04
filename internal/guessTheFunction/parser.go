@@ -110,14 +110,14 @@ func ParseFunction(input string) (Expr, error) {
 	// Find tokens
 	tokens, lexError := lexFunctionDefinition(input)
 	if lexError != nil {
-		log.Fatal("error running lexical analysis on input, ", input, ", error,", lexError)
+		log.Println("error running lexical analysis on input, ", input, ", error,", lexError)
 		return nil, errors.New("error running lexical analysis on input")
 	}
 
 	// Generate AST
 	AST, astError := generateAST(tokens)
 	if astError != nil {
-		log.Fatal("error generating AST from tokens, ", tokens, ", error,", astError)
+		log.Println("error generating AST from tokens, ", tokens, ", error,", astError)
 		return nil, errors.New("error generating AST from tokens")
 	}
 

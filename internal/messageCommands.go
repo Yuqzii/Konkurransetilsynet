@@ -6,3 +6,8 @@ func Hello(s *discordgo.Session, m *discordgo.MessageCreate) error {
 	_, err := s.ChannelMessageSend(m.ChannelID, "world!")
 	return err
 }
+
+func UnknownCommand(s *discordgo.Session, m *discordgo.MessageCreate) error {
+	_, err := s.ChannelMessageSend(m.ChannelID, "unknown command")
+	return err
+}
