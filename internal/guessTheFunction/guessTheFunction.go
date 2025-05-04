@@ -13,7 +13,7 @@ func HandleGuessTheFunctionCommands(args []string, session *discordgo.Session, m
 	function, parseError := MakeNewFunction(args[1])
 	if parseError != nil {
 		log.Println("error parsing function: ", parseError)
-		return;
+		return
 	}
 
 	// Testing purposes
@@ -25,6 +25,6 @@ func HandleGuessTheFunctionCommands(args []string, session *discordgo.Session, m
 	_, messageError := session.ChannelMessageSend(message.ChannelID, output)
 	if messageError != nil {
 		log.Println("guessTheFunction command failed to execute, ", messageError)
-		return;
+		return
 	}
 }
