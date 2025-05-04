@@ -39,7 +39,9 @@ type Contest struct {
 	FreezeDurationSeconds int    `json:"freezeDurationSeconds,omitempty"`
 }
 
-func listFutureContests(session *discordgo.Session, message *discordgo.MessageCreate) error {
+func listFutureContests(manager *Manager, session *discordgo.Session,
+	message *discordgo.MessageCreate) error {
+
 	contests, err := getFromAPI()
 	if err != nil {
 		return err
@@ -63,6 +65,8 @@ func listFutureContests(session *discordgo.Session, message *discordgo.MessageCr
 			upcoming = append(upcoming, contest)
 		}
 	}
+
+	manager.upcomingContests = upcoming
 
 	// Sort upcoming contests by starting time
 	sort.Slice(upcoming, func(i, j int) bool {
