@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-type TestData struct {
+type testData struct {
 	input  string
 	answer Function
 }
@@ -15,7 +15,7 @@ const numberSamplesPerFunctionTest int = 100
 const maxTolerableError float64 = 1e-5
 
 func TestMakeNewFunction_Linear(t *testing.T) {
-	functionDefinitions := [...]TestData{
+	functionDefinitions := [...]testData{
 		{"x+10", Function{Add{
 			Variable{}, Number{Value: 10}}}},
 

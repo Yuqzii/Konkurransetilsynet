@@ -19,13 +19,13 @@ const (
 	POWER_TOKEN
 )
 
-type Token struct {
+type token struct {
 	Type  int
 	Value string
 }
 
-func LexFunctionDefinition(definition string) ([]Token, error) {
-	var tokens []Token
+func lexFunctionDefinition(definition string) ([]token, error) {
+	var tokens []token
 	i := 0
 	for i < len(definition) {
 		ch := definition[i]
@@ -36,19 +36,19 @@ func LexFunctionDefinition(definition string) ([]Token, error) {
 			for i < len(definition) && unicode.IsDigit(rune(definition[i])) {
 				i++
 			}
-			tokens = append(tokens, Token{Type: NUMBER_TOKEN, Value: definition[start:i]})
+			tokens = append(tokens, token{Type: NUMBER_TOKEN, Value: definition[start:i]})
 		} else if ch == 'x' {
-			tokens = append(tokens, Token{Type: VARIABLE_TOKEN, Value: "x"})
+			tokens = append(tokens, token{Type: VARIABLE_TOKEN, Value: "x"})
 		} else if ch == '+' {
-			tokens = append(tokens, Token{Type: ADDITION_TOKEN, Value: "+"})
+			tokens = append(tokens, token{Type: ADDITION_TOKEN, Value: "+"})
 		} else if ch == '-' {
-			tokens = append(tokens, Token{Type: SUBTRACTION_TOKEN, Value: "-"})
+			tokens = append(tokens, token{Type: SUBTRACTION_TOKEN, Value: "-"})
 		} else if ch == '*' {
-			tokens = append(tokens, Token{Type: MULTIPLICATION_TOKEN, Value: "*"})
+			tokens = append(tokens, token{Type: MULTIPLICATION_TOKEN, Value: "*"})
 		} else if ch == '/' {
-			tokens = append(tokens, Token{Type: DIVISION_TOKEN, Value: "/"})
+			tokens = append(tokens, token{Type: DIVISION_TOKEN, Value: "/"})
 		} else if ch == '^' {
-			tokens = append(tokens, Token{Type: POWER_TOKEN, Value: "^"})
+			tokens = append(tokens, token{Type: POWER_TOKEN, Value: "^"})
 		} else {
 			return nil, fmt.Errorf("unexpected char, %c in function definition, %s", ch, definition)
 		}
@@ -57,7 +57,7 @@ func LexFunctionDefinition(definition string) ([]Token, error) {
 	return tokens, nil
 }
 
-func GenerateAST(tokens []Token) (Expr, error) {
+func generateAST(tokens []token) (Expr, error) {
 	// Generate base case for array of length 1
 	if len(tokens) == 1 {
 		token := tokens[0]
@@ -82,12 +82,12 @@ func GenerateAST(tokens []Token) (Expr, error) {
 
 		// Handle addition token, splits token array recursively
 		if currentToken.Type == ADDITION_TOKEN && i > 0 && i < len(tokens)-1 {
-			left, errLeft := GenerateAST(tokens[:i])
+			left, errLeft := generateAST(tokens[:i])
 			if errLeft != nil {
 				return nil, errors.New("unable to parse left in addition AST, good luck")
 			}
 
-			right, errRight := GenerateAST(tokens[i+1:])
+			right, errRight := generateAST(tokens[i+1:])
 			if errRight != nil {
 				return nil, errors.New("unable to parse right in addition AST, good luck")
 			}
@@ -105,14 +105,14 @@ func ParseFunction(input string) (Expr, error) {
 	input = strings.ReplaceAll(input, " ", "")
 
 	// Find tokens
-	tokens, lexError := LexFunctionDefinition(input)
+	tokens, lexError := lexFunctionDefinition(input)
 	if lexError != nil {
 		log.Fatal("error running lexical analysis on input, ", input, ", error,", lexError)
 		return nil, errors.New("error running lexical analysis on input")
 	}
 
 	// Generate AST
-	AST, astError := GenerateAST(tokens)
+	AST, astError := generateAST(tokens)
 	if astError != nil {
 		log.Fatal("error generating AST from tokens, ", tokens, ", error,", astError)
 		return nil, errors.New("error generating AST from tokens")
