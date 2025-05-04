@@ -37,20 +37,23 @@ func lexFunctionDefinition(definition string) ([]token, error) {
 				i++
 			}
 			tokens = append(tokens, token{Type: NUMBER_TOKEN, Value: definition[start:i]})
-		} else if ch == 'x' {
-			tokens = append(tokens, token{Type: VARIABLE_TOKEN, Value: "x"})
-		} else if ch == '+' {
-			tokens = append(tokens, token{Type: ADDITION_TOKEN, Value: "+"})
-		} else if ch == '-' {
-			tokens = append(tokens, token{Type: SUBTRACTION_TOKEN, Value: "-"})
-		} else if ch == '*' {
-			tokens = append(tokens, token{Type: MULTIPLICATION_TOKEN, Value: "*"})
-		} else if ch == '/' {
-			tokens = append(tokens, token{Type: DIVISION_TOKEN, Value: "/"})
-		} else if ch == '^' {
-			tokens = append(tokens, token{Type: POWER_TOKEN, Value: "^"})
 		} else {
-			return nil, fmt.Errorf("unexpected char, %c in function definition, %s", ch, definition)
+			switch ch {
+			case 'x':
+				tokens = append(tokens, token{Type: VARIABLE_TOKEN, Value: "x"})
+			case '+':
+				tokens = append(tokens, token{Type: ADDITION_TOKEN, Value: "+"})
+			case '-':
+				tokens = append(tokens, token{Type: SUBTRACTION_TOKEN, Value: "-"})
+			case '*':
+				tokens = append(tokens, token{Type: MULTIPLICATION_TOKEN, Value: "*"})
+			case '/':
+				tokens = append(tokens, token{Type: DIVISION_TOKEN, Value: "/"})
+			case '^':
+				tokens = append(tokens, token{Type: POWER_TOKEN, Value: "^"})
+			default:
+				return nil, fmt.Errorf("unexpected char, %c in function definition, %s", ch, definition)
+			}
 		}
 		i++
 	}
