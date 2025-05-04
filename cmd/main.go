@@ -25,7 +25,7 @@ func main() {
 		log.Fatal("Could not create bot, ", err)
 	}
 
-	cfManager := codeforces.Manager{}
+	cfManager := codeforces.MakeManager()
 
 	session.AddHandler(func(session *discordgo.Session, message *discordgo.MessageCreate) {
 		// Don't react to messages from this bot
@@ -79,12 +79,13 @@ func main() {
 		log.Fatal("Could not open session with token ", err)
 	}
 
+	// Close session when application exits
 	defer func() {
-		err = session.Close() // Close session when application exits
+		err = session.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}()
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	log.Println("Bot is online")
 

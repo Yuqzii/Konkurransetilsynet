@@ -7,7 +7,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func (manager *Manager) listFutureContests(session *discordgo.Session,
+func (manager *manager) listFutureContests(session *discordgo.Session,
 	message *discordgo.MessageCreate) error {
 
 	err := manager.updateUpcomingContests()

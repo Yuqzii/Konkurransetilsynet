@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -38,21 +39,42 @@ type contest struct {
 	FreezeDurationSeconds int    `json:"freezeDurationSeconds,omitempty"`
 }
 
-type Manager struct {
+type manager struct {
 	upcomingContests []contest
 }
 
-func (manager *Manager) HandleCodeforcesCommands(args []string, session *discordgo.Session,
+func MakeManager() manager {
+	man := manager{}
+	man.startContestUpdate()
+	return man
+}
+
+func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.Session,
 	message *discordgo.MessageCreate) {
 	if args[1] == "contests" {
-		err := manager.listFutureContests(session, message)
+		err := man.listFutureContests(session, message)
 		if err != nil {
 			log.Println("Listing future Codeforces contests failed, ", err)
 		}
 	}
 }
 
-func (manager *Manager) updateUpcomingContests() error {
+func (man *manager) startContestUpdate() {
+	// Start goroutine that updates upcomingContests whenever the manager's ticker fires
+	go func() {
+		for {
+			// Update once every hour
+			time.Sleep(1 * time.Hour)
+
+			err := man.updateUpcomingContests()
+			if err != nil {
+				log.Println("Updating upcoming contests failed,", err)
+			}
+		}
+	}()
+}
+
+func (man *manager) updateUpcomingContests() error {
 	contests, err := getContests()
 	if err != nil {
 		return err
@@ -75,7 +97,7 @@ func (manager *Manager) updateUpcomingContests() error {
 		return upcoming[i].StartTimeSeconds < upcoming[j].StartTimeSeconds
 	})
 
-	manager.upcomingContests = upcoming
+	man.upcomingContests = upcoming
 	return nil
 }
 
