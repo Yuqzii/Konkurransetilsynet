@@ -19,6 +19,7 @@ type contestList struct {
 }
 
 type contest struct {
+	Pinged                bool
 	ID                    int    `json:"id"`
 	Name                  string `json:"name"`
 	Type                  string `json:"type"`
@@ -46,6 +47,7 @@ type manager struct {
 func MakeManager() manager {
 	man := manager{}
 	man.startContestUpdate()
+	man.startContestPingCheck()
 	return man
 }
 
@@ -59,8 +61,8 @@ func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.S
 	}
 }
 
+// Start goroutine that updates upcomingContests
 func (man *manager) startContestUpdate() {
-	// Start goroutine that updates upcomingContests whenever the manager's ticker fires
 	go func() {
 		for {
 			// Update once every hour
