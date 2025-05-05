@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -56,21 +55,12 @@ func main() {
 			cfManager.HandleCodeforcesCommands(args, session, message)
 
 		case "guessTheFunction":
-			log.Println("recived guessTheFunction command")
-			// predefined function for testing
-			function, parseError := guessTheFunction.MakeNewFunction("x^2 + 3x + 2")
-			if parseError != nil {
-				log.Fatal("error parsing function: ", parseError)
-			}
+			guessTheFunction.HandleGuessTheFunctionCommands(args, session, message)
 
-			output := ""
-			output += fmt.Sprintf("f(2) = %f", function.Eval(2))
-			output += fmt.Sprintf("f(10) = %f", function.Eval(10))
-			log.Println(output)
-
-			_, messageError := session.ChannelMessageSend(message.ChannelID, output)
-			if messageError != nil {
-				log.Fatal("guessTheFunction command failed to execute, ", messageError)
+		default:
+			err := messageCommands.UnknownCommand(session, message)
+			if err != nil {
+				log.Println("Unknown command failed to execute, ", err)
 			}
 		}
 	})
