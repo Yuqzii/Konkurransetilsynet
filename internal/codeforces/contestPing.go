@@ -22,8 +22,10 @@ func (man *manager) startContestPingCheck(session *discordgo.Session) {
 }
 
 func (man *manager) checkContestPing(session *discordgo.Session) {
+	log.Println("Checking contests for ping")
 	for _, contest := range man.upcomingContests {
 		if contest.StartTimeSeconds-int(time.Now().Unix()) <= pingTime && !contest.Pinged {
+			log.Println("Pinging contest", contest.Name)
 			err := man.contestPing(&contest, session)
 			if err != nil {
 				log.Println("Automatic contest ping failed, ", err)
