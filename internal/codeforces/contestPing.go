@@ -22,26 +22,26 @@ func (man *manager) startContestPingCheck(session *discordgo.Session) {
 
 func (man *manager) checkContestPing(session *discordgo.Session) {
 	for _, contest := range man.upcomingContests {
-		if contest.StartTimeSeconds - int(time.Now().Unix()) <= pingTime && !contest.Pinged {
+		if contest.StartTimeSeconds-int(time.Now().Unix()) <= pingTime && !contest.Pinged {
 			man.contestPing(&contest, session)
 		}
 	}
 }
 
 func (man *manager) contestPing(contest *contest, session *discordgo.Session) error {
-    contest.Pinged = true
+	contest.Pinged = true
 
-    for _, channel := range man.pingChannelIDs {
-        // !!!! UPDATE FOR PRODUCTION, using temporary hardcoded role id
-        _, err := session.ChannelMessageSend(channel,
-            fmt.Sprint("<@&1369025298359648358>", contest.Name,
-            fmt.Sprintf("is starting <t:%d:R>", contest.StartTimeSeconds)))
-        if err != nil {
-            return err
-        }
-    }
+	for _, channel := range man.pingChannelIDs {
+		// !!!! UPDATE FOR PRODUCTION, using temporary hardcoded role id
+		_, err := session.ChannelMessageSend(channel,
+			fmt.Sprint("<@&1369025298359648358>", contest.Name,
+				fmt.Sprintf("is starting <t:%d:R>", contest.StartTimeSeconds)))
+		if err != nil {
+			return err
+		}
+	}
 
-    return nil
+	return nil
 }
 
 func (man *manager) initPingChannel(session *discordgo.Session) error {
@@ -75,7 +75,7 @@ func (man *manager) initPingChannel(session *discordgo.Session) error {
 			if err != nil {
 				return err
 			}
-			
+
 			pingChannel = newChannel.ID
 		}
 

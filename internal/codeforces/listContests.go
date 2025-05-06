@@ -43,4 +43,3 @@ func (manager *manager) listFutureContests(session *discordgo.Session,
 	_, err = session.ChannelMessageSendEmbed(message.ChannelID, &embed)
 	return err
 }
-

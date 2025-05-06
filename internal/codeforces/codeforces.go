@@ -45,7 +45,7 @@ type contest struct {
 
 type manager struct {
 	upcomingContests []contest
-	pingChannelIDs []string
+	pingChannelIDs   []string
 }
 
 func NewManager(session *discordgo.Session) (*manager, error) {
@@ -91,9 +91,9 @@ func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.S
 
 func (man *manager) addDebugContest(name string, startTime int) {
 	man.upcomingContests = append(man.upcomingContests, contest{
-		Name: name,
+		Name:             name,
 		StartTimeSeconds: startTime,
-		Pinged: false,
+		Pinged:           false,
 	})
 }
 
