@@ -68,7 +68,7 @@ func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.S
 			log.Println("Listing future Codeforces contests failed, ", err)
 		}
 	case "addDebugContest":
-		if len(args) != 5 {
+		if len(args) != 4 {
 			err := messageCommands.UnknownCommand(session, message)
 			if err != nil {
 				log.Println("UnknownCommand failed, ", err)
@@ -76,7 +76,7 @@ func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.S
 			return
 		}
 
-		startTime, err := strconv.Atoi(args[4])
+		startTime, err := strconv.Atoi(args[3])
 		if err != nil {
 			err = messageCommands.UnknownCommand(session, message)
 			if err != nil {
@@ -85,7 +85,7 @@ func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.S
 			return
 		}
 
-		man.addDebugContest(args[3], startTime)
+		man.addDebugContest(args[2], startTime)
 	}
 }
 
