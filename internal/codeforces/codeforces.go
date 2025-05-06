@@ -48,7 +48,7 @@ type manager struct {
 func NewManager(session *discordgo.Session) (*manager, error) {
 	man := new(manager)
 	man.startContestUpdate()
-	man.startContestPingCheck()
+	man.startContestPingCheck(session)
 	err := man.initPingChannel(session)
 	if err != nil {
 		return nil, err

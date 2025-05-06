@@ -1,6 +1,7 @@
 package codeforces
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -9,26 +10,38 @@ import (
 const pingTime int = 1 * 3600 // 1 hour
 
 // Start goroutine that checks whether it should issue a ping for upcoming contests
-func (man *manager) startContestPingCheck() {
+func (man *manager) startContestPingCheck(session *discordgo.Session) {
 	go func() {
 		for {
 			time.Sleep(1 * time.Minute)
 
-			man.checkContestPing()
+			man.checkContestPing(session)
 		}
 	}()
 }
 
-func (man *manager) checkContestPing() {
+func (man *manager) checkContestPing(session *discordgo.Session) {
 	for _, contest := range man.upcomingContests {
 		if contest.StartTimeSeconds - int(time.Now().Unix()) <= pingTime && !contest.Pinged {
-			contestPing(&contest)
+			man.contestPing(&contest, session)
 		}
 	}
 }
 
-func contestPing(contest *contest) {
-	contest.Pinged = true
+func (man *manager) contestPing(contest *contest, session *discordgo.Session) error {
+    contest.Pinged = true
+
+    for _, channel := range man.pingChannelIDs {
+        // !!!! UPDATE FOR PRODUCTION, using temporary hardcoded role id
+        _, err := session.ChannelMessageSend(channel,
+            fmt.Sprint("<@&1369025298359648358>", contest.Name,
+            fmt.Sprintf("is starting <t:%d:R>", contest.StartTimeSeconds)))
+        if err != nil {
+            return err
+        }
+    }
+
+    return nil
 }
 
 func (man *manager) initPingChannel(session *discordgo.Session) error {
