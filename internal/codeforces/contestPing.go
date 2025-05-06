@@ -2,6 +2,7 @@ package codeforces
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -22,8 +23,11 @@ func (man *manager) startContestPingCheck(session *discordgo.Session) {
 
 func (man *manager) checkContestPing(session *discordgo.Session) {
 	for _, contest := range man.upcomingContests {
-		if contest.StartTimeSeconds-int(time.Now().Unix()) <= pingTime && !contest.Pinged {
-			man.contestPing(&contest, session)
+		if contest.StartTimeSeconds - int(time.Now().Unix()) <= pingTime && !contest.Pinged {
+			err := man.contestPing(&contest, session)
+			if err != nil {
+				log.Println("Automatic contest ping failed, ", err)
+			}
 		}
 	}
 }
