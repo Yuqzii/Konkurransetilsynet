@@ -7,9 +7,12 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+
+	"github.com/yuqzii/konkurransetilsynet/internal"
 )
 
 type contestList struct {
@@ -58,12 +61,40 @@ func NewManager(session *discordgo.Session) (*manager, error) {
 
 func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.Session,
 	message *discordgo.MessageCreate) {
-	if args[1] == "contests" {
+	switch args[1] {
+	case "contests":
 		err := man.listFutureContests(session, message)
 		if err != nil {
 			log.Println("Listing future Codeforces contests failed, ", err)
 		}
+	case "addDebugContest":
+		if len(args) != 5 {
+			err := messageCommands.UnknownCommand(session, message)
+			if err != nil {
+				log.Println("UnknownCommand failed, ", err)
+			}
+			return
+		}
+
+		startTime, err := strconv.Atoi(args[4])
+		if err != nil {
+			err = messageCommands.UnknownCommand(session, message)
+			if err != nil {
+				log.Println("UnknownCommand failed, ", err)
+			}
+			return
+		}
+
+		man.addDebugContest(args[3], startTime)
 	}
+}
+
+func (man *manager) addDebugContest(name string, startTime int) {
+	man.upcomingContests = append(man.upcomingContests, contest{
+		Name: name,
+		StartTimeSeconds: startTime,
+		Pinged: false,
+	})
 }
 
 // Start goroutine that updates upcomingContests
