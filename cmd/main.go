@@ -24,7 +24,46 @@ func main() {
 		log.Fatal("Could not create bot, ", err)
 	}
 
-	session.AddHandler(onMessageCreate)
+	cfManager, err := codeforces.NewManager(session)
+	if err != nil {
+		log.Fatal("Could not create Codeforces manager,", err)
+	}
+
+	session.AddHandler(func(session *discordgo.Session, message *discordgo.MessageCreate) {
+		// Don't react to messages from this bot
+		if message.Author.ID == session.State.User.ID {
+			return
+		}
+
+		// Don't react to messages without the prefix
+		if string(message.Content[0:utf8.RuneCountInString(prefix)]) != prefix {
+			return
+		}
+
+		// Get message arguments separated by space
+		args := strings.Split(message.Content, " ")
+		command := strings.TrimPrefix(args[0], prefix)
+
+		switch command {
+		case "hello":
+			err := messageCommands.Hello(session, message)
+			if err != nil {
+				log.Fatal("Hello command failed to execute, ", err)
+			}
+
+		case "cf":
+			cfManager.HandleCodeforcesCommands(args, session, message)
+
+		case "guessTheFunction":
+			guessTheFunction.HandleGuessTheFunctionCommands(args, session, message)
+
+		default:
+			err := messageCommands.UnknownCommand(session, message)
+			if err != nil {
+				log.Println("Unknown command failed to execute, ", err)
+			}
+		}
+	})
 
 	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
 
@@ -33,51 +72,17 @@ func main() {
 		log.Fatal("Could not open session with token ", err)
 	}
 
+	// Close session when application exits
 	defer func() {
-		err = session.Close() // Close session when application exits
+		err = session.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}()
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	log.Println("Bot is online")
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
-}
-
-func onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	// Don't react to messages from this bot
-	if m.Author.ID == s.State.User.ID {
-		return
-	}
-
-	if string(m.Content[0:utf8.RuneCountInString(prefix)]) != prefix {
-		return
-	}
-
-	// Get message arguments separated by space
-	args := strings.Split(m.Content, " ")
-	command := strings.TrimPrefix(args[0], prefix)
-
-	switch command {
-	case "hello":
-		err := messageCommands.Hello(s, m)
-		if err != nil {
-			log.Println("Hello command failed to execute, ", err)
-		}
-
-	case "cf":
-		codeforces.HandleCodeforcesCommands(args, s, m)
-
-	case "guessTheFunction":
-		guessTheFunction.HandleGuessTheFunctionCommands(args, s, m)
-
-	default:
-		err := messageCommands.UnknownCommand(s, m)
-		if err != nil {
-			log.Println("Unknown command failed to execute, ", err)
-		}
-	}
 }
