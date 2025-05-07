@@ -25,7 +25,7 @@ func (man *manager) checkContestPing(session *discordgo.Session) {
 	for _, contest := range man.upcomingContests {
 		if contest.StartTimeSeconds-int(time.Now().Unix()) <= pingTime && !contest.Pinged {
 			log.Println("Pinging contest", contest.Name)
-			err := man.contestPing(&contest, session)
+			err := man.contestPing(contest, session)
 			if err != nil {
 				log.Println("Automatic contest ping failed, ", err)
 			}
@@ -81,10 +81,12 @@ func (man *manager) initPingChannel(session *discordgo.Session) error {
 				return err
 			}
 
+			log.Println("Created ping channel, ", newChannel.ID)
 			pingChannel = newChannel.ID
 		}
 
 		man.pingChannelIDs = append(man.pingChannelIDs, pingChannel)
+		log.Println("Found ping channel, ", pingChannel)
 	}
 
 	return nil

@@ -44,7 +44,7 @@ type contest struct {
 }
 
 type manager struct {
-	upcomingContests []contest
+	upcomingContests []*contest
 	pingChannelIDs   []string
 }
 
@@ -90,7 +90,7 @@ func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.S
 }
 
 func (man *manager) addDebugContest(name string, startTime int) {
-	man.upcomingContests = append(man.upcomingContests, contest{
+	man.upcomingContests = append(man.upcomingContests, &contest{
 		Name:             name,
 		StartTimeSeconds: startTime,
 		Pinged:           false,
@@ -123,10 +123,10 @@ func (man *manager) updateUpcomingContests() error {
 	}
 
 	// Find all current or future contests
-	var upcoming []contest
+	var upcoming []*contest
 	for _, contest := range contests.Contests {
 		if contest.Phase == "BEFORE" || contest.Phase == "CODING" {
-			upcoming = append(upcoming, contest)
+			upcoming = append(upcoming, &contest)
 		}
 	}
 
