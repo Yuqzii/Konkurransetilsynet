@@ -89,7 +89,10 @@ func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.S
 
 		man.addDebugContest(args[2], startTime)
 	default:
-		messageCommands.UnknownCommand(session, message)
+		err := messageCommands.UnknownCommand(session, message)
+		if err != nil {
+			log.Println("UnkownCommand failed, ", err)
+		}
 	}
 
 }
