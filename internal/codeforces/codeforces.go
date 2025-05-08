@@ -16,9 +16,9 @@ import (
 )
 
 type contestList struct {
-	Status   string    `json:"status"`
+	Status   string     `json:"status"`
 	Contests []*contest `json:"result"`
-	Comment  string    `json:"comment,omitempty"`
+	Comment  string     `json:"comment,omitempty"`
 }
 
 type contest struct {
