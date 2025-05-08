@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -46,6 +47,7 @@ type contest struct {
 type manager struct {
 	upcomingContests []*contest
 	pingChannelIDs   []string
+	mu               sync.Mutex
 }
 
 func NewManager(session *discordgo.Session) (*manager, error) {
@@ -86,7 +88,10 @@ func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.S
 		}
 
 		man.addDebugContest(args[2], startTime)
+	default:
+		messageCommands.UnknownCommand(session, message)
 	}
+
 }
 
 func (man *manager) addDebugContest(name string, startTime int) {
@@ -135,7 +140,9 @@ func (man *manager) updateUpcomingContests() error {
 		return upcoming[i].StartTimeSeconds < upcoming[j].StartTimeSeconds
 	})
 
+	man.mu.Lock() // Ensure no other goroutines access the manager while we are writing
 	man.upcomingContests = upcoming
+	man.mu.Unlock()
 	return nil
 }
 
