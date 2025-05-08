@@ -72,6 +72,11 @@ func main() {
 		log.Fatal("Could not open session with token ", err)
 	}
 
+	err = cfManager.InitPingChannel(session)
+	if err != nil {
+		log.Println("Could not initialize Codeforces ping channel, ", err)
+	}
+
 	// Close session when application exits
 	defer func() {
 		err = session.Close()
