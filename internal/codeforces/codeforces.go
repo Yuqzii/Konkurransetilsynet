@@ -17,7 +17,7 @@ import (
 
 type contestList struct {
 	Status   string    `json:"status"`
-	Contests []contest `json:"result"`
+	Contests []*contest `json:"result"`
 	Comment  string    `json:"comment,omitempty"`
 }
 
@@ -126,7 +126,7 @@ func (man *manager) updateUpcomingContests() error {
 	var upcoming []*contest
 	for _, contest := range contests.Contests {
 		if contest.Phase == "BEFORE" || contest.Phase == "CODING" {
-			upcoming = append(upcoming, &contest)
+			upcoming = append(upcoming, contest)
 		}
 	}
 
