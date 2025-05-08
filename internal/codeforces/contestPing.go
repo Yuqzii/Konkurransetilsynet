@@ -43,8 +43,8 @@ func (man *manager) contestPing(contest *contest, session *discordgo.Session) er
 	for _, channel := range man.pingChannelIDs {
 		// !!!! UPDATE FOR PRODUCTION, using temporary hardcoded role id
 		_, err := session.ChannelMessageSend(channel,
-			fmt.Sprint("<@&1369025298359648358>", contest.Name,
-				fmt.Sprintf("is starting <t:%d:R>", contest.StartTimeSeconds)))
+			fmt.Sprint("<@&1369025298359648358> ", contest.Name,
+				fmt.Sprintf(" is starting <t:%d:R>", contest.StartTimeSeconds)))
 		if err != nil {
 			return err
 		}
@@ -85,12 +85,12 @@ func (man *manager) InitPingChannel(session *discordgo.Session) error {
 				return err
 			}
 
-			log.Println("Created ping channel, ", newChannel.ID)
+			log.Println("Created ping channel,", newChannel.ID)
 			pingChannel = newChannel.ID
 		}
 
 		man.pingChannelIDs = append(man.pingChannelIDs, pingChannel)
-		log.Println("Found ping channel, ", pingChannel)
+		log.Println("Found ping channel,", pingChannel)
 	}
 
 	return nil
