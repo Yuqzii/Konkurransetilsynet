@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -16,9 +17,9 @@ import (
 )
 
 type contestList struct {
-	Status   string    `json:"status"`
-	Contests []contest `json:"result"`
-	Comment  string    `json:"comment,omitempty"`
+	Status   string     `json:"status"`
+	Contests []*contest `json:"result"`
+	Comment  string     `json:"comment,omitempty"`
 }
 
 type contest struct {
@@ -44,8 +45,9 @@ type contest struct {
 }
 
 type manager struct {
-	upcomingContests []contest
+	upcomingContests []*contest
 	pingChannelIDs   []string
+	mu               sync.Mutex
 }
 
 func NewManager(session *discordgo.Session) (*manager, error) {
@@ -86,11 +88,17 @@ func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.S
 		}
 
 		man.addDebugContest(args[2], startTime)
+	default:
+		err := messageCommands.UnknownCommand(session, message)
+		if err != nil {
+			log.Println("UnkownCommand failed, ", err)
+		}
 	}
+
 }
 
 func (man *manager) addDebugContest(name string, startTime int) {
-	man.upcomingContests = append(man.upcomingContests, contest{
+	man.upcomingContests = append(man.upcomingContests, &contest{
 		Name:             name,
 		StartTimeSeconds: startTime,
 		Pinged:           false,
@@ -123,7 +131,7 @@ func (man *manager) updateUpcomingContests() error {
 	}
 
 	// Find all current or future contests
-	var upcoming []contest
+	var upcoming []*contest
 	for _, contest := range contests.Contests {
 		if contest.Phase == "BEFORE" || contest.Phase == "CODING" {
 			upcoming = append(upcoming, contest)
@@ -135,7 +143,9 @@ func (man *manager) updateUpcomingContests() error {
 		return upcoming[i].StartTimeSeconds < upcoming[j].StartTimeSeconds
 	})
 
+	man.mu.Lock() // Ensure no other goroutines access the manager while we are writing
 	man.upcomingContests = upcoming
+	man.mu.Unlock()
 	return nil
 }
 
