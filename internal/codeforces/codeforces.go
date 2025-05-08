@@ -57,40 +57,45 @@ func NewManager(session *discordgo.Session) (*manager, error) {
 	return man, nil
 }
 
+// Should be called after session is opened
+func (man *manager) Init(s *discordgo.Session) error {
+	err := man.InitPingChannel(s)
+	return err
+}
+
 func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.Session,
-	message *discordgo.MessageCreate) {
+	message *discordgo.MessageCreate) error {
 	switch args[1] {
 	case "contests":
 		err := man.listFutureContests(session, message)
 		if err != nil {
-			log.Println("Listing future Codeforces contests failed, ", err)
+			return errors.Join(errors.New("Listing future contests failed"), err)
 		}
 	case "addDebugContest":
 		if len(args) != 4 {
 			err := messageCommands.UnknownCommand(session, message)
 			if err != nil {
-				log.Println("UnknownCommand failed, ", err)
+				return err
 			}
-			return
+			return nil
 		}
 
 		startTime, err := strconv.Atoi(args[3])
 		if err != nil {
 			err = messageCommands.UnknownCommand(session, message)
 			if err != nil {
-				log.Println("UnknownCommand failed, ", err)
+				return err
 			}
-			return
+			return nil
 		}
 
 		man.addDebugContest(args[2], startTime)
 	default:
 		err := messageCommands.UnknownCommand(session, message)
-		if err != nil {
-			log.Println("UnkownCommand failed, ", err)
-		}
+		return err
 	}
-
+	
+	return nil
 }
 
 func (man *manager) addDebugContest(name string, startTime int) {

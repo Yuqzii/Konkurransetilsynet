@@ -52,7 +52,10 @@ func main() {
 			}
 
 		case "cf":
-			cfManager.HandleCodeforcesCommands(args, session, message)
+			err := cfManager.HandleCodeforcesCommands(args, session, message)
+			if err != nil {
+				log.Println("Codeforces command failed,", err)
+			}
 
 		case "guessTheFunction":
 			guessTheFunction.HandleGuessTheFunctionCommands(args, session, message)
@@ -72,9 +75,9 @@ func main() {
 		log.Fatal("Could not open session with token ", err)
 	}
 
-	err = cfManager.InitPingChannel(session)
+	err = cfManager.Init(session)
 	if err != nil {
-		log.Println("Could not initialize Codeforces ping channel, ", err)
+		log.Println("Could not initialize Codeforces manager,", err)
 	}
 
 	// Close session when application exits
