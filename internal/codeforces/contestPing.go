@@ -53,7 +53,7 @@ func (man *manager) contestPing(contest *contest, session *discordgo.Session) er
 	return nil
 }
 
-func (man *manager) InitPingChannel(session *discordgo.Session) error {
+func (man *manager) initPingChannel(session *discordgo.Session) error {
 	const channelName string = "contest-pings"
 
 	// Clear pingChannelIDs of possible existing IDs

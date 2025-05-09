@@ -50,17 +50,14 @@ type manager struct {
 	mu               sync.Mutex
 }
 
-func NewManager(session *discordgo.Session) (*manager, error) {
+func NewManager(s *discordgo.Session) (*manager, error) {
 	man := new(manager)
 	man.startContestUpdate()
-	man.startContestPingCheck(session)
+	man.startContestPingCheck(s)
+	if err := man.initPingChannel(s); err != nil {
+		return nil, err
+	}
 	return man, nil
-}
-
-// Should be called after session is opened
-func (man *manager) Init(s *discordgo.Session) error {
-	err := man.InitPingChannel(s)
-	return err
 }
 
 func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.Session,

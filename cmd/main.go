@@ -24,6 +24,22 @@ func main() {
 		log.Fatal("Could not create bot, ", err)
 	}
 
+	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
+
+	err = session.Open()
+	if err != nil {
+		log.Fatal("Could not open session with token ", err)
+	}
+
+	// Close session when application exits
+	defer func() {
+		err = session.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+
 	cfManager, err := codeforces.NewManager(session)
 	if err != nil {
 		log.Fatal("Could not create Codeforces manager,", err)
@@ -67,26 +83,6 @@ func main() {
 			}
 		}
 	})
-
-	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
-
-	err = session.Open()
-	if err != nil {
-		log.Fatal("Could not open session with token ", err)
-	}
-
-	err = cfManager.Init(session)
-	if err != nil {
-		log.Println("Could not initialize Codeforces manager,", err)
-	}
-
-	// Close session when application exits
-	defer func() {
-		err = session.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
 
 	log.Println("Bot is online")
 
