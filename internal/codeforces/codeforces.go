@@ -72,7 +72,7 @@ func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.
 
 		err := listContests(&upcoming, s, m)
 		if err != nil {
-			return errors.Join(errors.New("Listing future contests failed"), err)
+			return errors.Join(errors.New("listing future contests failed"), err)
 		}
 	case "addDebugContest":
 		if len(args) != 4 {
