@@ -20,51 +20,51 @@ var pingChannels = pingChannelIDs{}
 const pingTime int = 1 * 3600 // 1 hour
 
 // Start goroutine that checks whether it should issue a ping for upcoming contests
-func startContestPingCheck(interval time.Duration, session *discordgo.Session) {
+func startContestPingCheck(contests *contestList, interval time.Duration, session *discordgo.Session) {
 	go func() {
 		for {
 			time.Sleep(interval)
-			checkContestPing(session)
+			checkContestPing(contests, session)
 		}
 	}()
 }
 
-func checkContestPing(session *discordgo.Session) {
-	upcoming.mu.RLock()
-	defer upcoming.mu.RUnlock()
+func checkContestPing(contests *contestList, session *discordgo.Session) {
+	contests.mu.RLock()
+	defer contests.mu.RUnlock()
 
 	curTime := int(time.Now().Unix())
-	for i, contest := range upcoming.contests {
+	for i, contest := range contests.contests {
 		shouldPing := contest.StartTimeSeconds-curTime <= pingTime
 		if shouldPing && !contest.Pinged {
 			// Unlock reading to allow contestPing to write
-			upcoming.mu.RUnlock() 
+			contests.mu.RUnlock() 
 
 			log.Println("Pinging contest", contest.Name)
-			err := contestPing(i, session)
+			err := contestPing(contests, i, session)
 			if err != nil {
 				log.Println("Automatic contest ping failed:", err)
 			}
 		}
 		// Lock again to ensure safe access on next iteration
-		upcoming.mu.RLock()
+		contests.mu.RLock()
 	}
 }
 
-func contestPing(idx int, session *discordgo.Session) error {
-	upcoming.mu.Lock()
-	upcoming.contests[idx].Pinged = true
-	upcoming.mu.Unlock()
+func contestPing(contests *contestList, idx int, session *discordgo.Session) error {
+	contests.mu.Lock()
+	contests.contests[idx].Pinged = true
+	contests.mu.Unlock()
 
-	upcoming.mu.RLock()
-	defer upcoming.mu.RUnlock()
+	contests.mu.RLock()
+	defer contests.mu.RUnlock()
 	pingChannels.mu.RLock()
 	defer pingChannels.mu.RUnlock()
 	for _, channel := range pingChannels.list {
 		// !!!! UPDATE FOR PRODUCTION, using temporary hardcoded role id
 		_, err := session.ChannelMessageSend(channel,
-			fmt.Sprint("@<role> ", upcoming.contests[idx].Name,
-				fmt.Sprintf(" is starting <t:%d:R>", upcoming.contests[idx].StartTimeSeconds)))
+			fmt.Sprint("@<role> ", contests.contests[idx].Name,
+				fmt.Sprintf(" is starting <t:%d:R>", contests.contests[idx].StartTimeSeconds)))
 		if err != nil {
 			return err
 		}
