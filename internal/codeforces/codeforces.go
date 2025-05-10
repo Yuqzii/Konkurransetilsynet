@@ -16,9 +16,10 @@ import (
 	"github.com/yuqzii/konkurransetilsynet/internal"
 )
 
-type contestList struct {
+// The return object from the Codeforces API
+type contestListAPI struct {
 	Status   string     `json:"status"`
-	Contests []*contest `json:"result"`
+	Contests []contest `json:"result"`
 	Comment  string     `json:"comment,omitempty"`
 }
 
@@ -44,127 +45,48 @@ type contest struct {
 	FreezeDurationSeconds int    `json:"freezeDurationSeconds,omitempty"`
 }
 
-type manager struct {
-	upcomingContests []*contest
-	pingChannelIDs   []string
-	mu               sync.Mutex
+// !! Lock mutex when accessing
+type contestList struct {
+	contests []contest
+	mu       sync.RWMutex
 }
 
-func NewManager(s *discordgo.Session) (*manager, error) {
-	man := new(manager)
-	man.startContestUpdate()
-	man.startContestPingCheck(s)
-	if err := man.initPingChannel(s); err != nil {
-		return nil, err
+var upcoming = contestList{}
+
+func Init(s *discordgo.Session) error {
+	startContestUpdate(1 * time.Hour)
+	if err := updatePingChannels(s); err != nil {
+		return err
 	}
-	return man, nil
+	startContestPingCheck(1 * time.Second, s)
+	return nil
 }
 
-func (man *manager) HandleCodeforcesCommands(args []string, session *discordgo.Session,
-	message *discordgo.MessageCreate) error {
+func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
 	switch args[1] {
 	case "contests":
-		err := man.listFutureContests(session, message)
+		err := listFutureContests(s, m)
 		if err != nil {
 			return errors.Join(errors.New("Listing future contests failed"), err)
 		}
 	case "addDebugContest":
 		if len(args) != 4 {
-			err := messageCommands.UnknownCommand(session, message)
-			if err != nil {
-				return err
-			}
-			return nil
+			err := messageCommands.UnknownCommand(s, m)
+			return err
 		}
 
 		startTime, err := strconv.Atoi(args[3])
 		if err != nil {
-			err = messageCommands.UnknownCommand(session, message)
-			if err != nil {
-				return err
-			}
-			return nil
+			err = errors.Join(err, messageCommands.UnknownCommand(s, m))
+			return err
 		}
 
-		man.addDebugContest(args[2], startTime)
+		addDebugContest(args[2], startTime)
 	default:
-		err := messageCommands.UnknownCommand(session, message)
-		return err
-	}
-	
-	return nil
-}
-
-func (man *manager) addDebugContest(name string, startTime int) {
-	man.upcomingContests = append(man.upcomingContests, &contest{
-		Name:             name,
-		StartTimeSeconds: startTime,
-		Pinged:           false,
-	})
-}
-
-// Start goroutine that updates upcomingContests
-func (man *manager) startContestUpdate() {
-	go func() {
-		for {
-			// Update once every hour
-			time.Sleep(1 * time.Hour)
-
-			err := man.updateUpcomingContests()
-			if err != nil {
-				log.Println("Updating upcoming contests failed,", err)
-			}
-		}
-	}()
-}
-
-func (man *manager) updateUpcomingContests() error {
-	contests, err := getContests()
-	if err != nil {
+		err := messageCommands.UnknownCommand(s, m)
 		return err
 	}
 
-	if contests.Status == "FAILED" {
-		return errors.New(contests.Comment)
-	}
-
-	// Find all current or future contests
-	var upcoming []*contest
-	for _, contest := range contests.Contests {
-		if contest.Phase == "BEFORE" || contest.Phase == "CODING" {
-			upcoming = append(upcoming, contest)
-		}
-	}
-
-	// Sort upcoming contests by starting time
-	sort.Slice(upcoming, func(i, j int) bool {
-		return upcoming[i].StartTimeSeconds < upcoming[j].StartTimeSeconds
-	})
-
-	man.mu.Lock() // Ensure no other goroutines access the manager while we are writing
-	man.upcomingContests = upcoming
-	man.mu.Unlock()
 	return nil
 }
 
-func getContests() (contests *contestList, err error) {
-	res, err := http.Get("https://codeforces.com/api/contest.list")
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err == nil {
-			err = res.Body.Close()
-		}
-	}()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var contestList contestList
-	err = json.Unmarshal(body, &contestList)
-
-	return &contestList, err
-}

@@ -7,10 +7,8 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func (manager *manager) listFutureContests(session *discordgo.Session,
-	message *discordgo.MessageCreate) error {
-
-	err := manager.updateUpcomingContests()
+func listFutureContests(s *discordgo.Session, m *discordgo.MessageCreate) error {
+	err := updateUpcoming()
 	if err != nil {
 		return err
 	}
@@ -23,7 +21,7 @@ func (manager *manager) listFutureContests(session *discordgo.Session,
 	}
 
 	// Add embed for each contest
-	for _, contest := range manager.upcomingContests {
+	for _, contest := range upcoming.contests {
 		if contest.Phase == "BEFORE" {
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name:   contest.Name,
@@ -40,6 +38,6 @@ func (manager *manager) listFutureContests(session *discordgo.Session,
 		}
 	}
 
-	_, err = session.ChannelMessageSendEmbed(message.ChannelID, &embed)
+	_, err = s.ChannelMessageSendEmbed(m.ChannelID, &embed)
 	return err
 }

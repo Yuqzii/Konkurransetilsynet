@@ -39,10 +39,9 @@ func main() {
 		}
 	}()
 
-
-	cfManager, err := codeforces.NewManager(session)
+	err = codeforces.Init(session)
 	if err != nil {
-		log.Fatal("Could not create Codeforces manager,", err)
+		log.Fatal("Could not initialize Codeforces package:", err)
 	}
 
 	session.AddHandler(func(session *discordgo.Session, message *discordgo.MessageCreate) {
@@ -68,9 +67,9 @@ func main() {
 			}
 
 		case "cf":
-			err := cfManager.HandleCodeforcesCommands(args, session, message)
+			err := codeforces.HandleCodeforcesCommands(args, session, message)
 			if err != nil {
-				log.Println("Codeforces command failed,", err)
+				log.Println("Codeforces command failed:", err)
 			}
 
 		case "guessTheFunction":
