@@ -18,9 +18,9 @@ import (
 
 // The return object from the Codeforces API
 type contestListAPI struct {
-	Status   string     `json:"status"`
+	Status   string    `json:"status"`
 	Contests []contest `json:"result"`
-	Comment  string     `json:"comment,omitempty"`
+	Comment  string    `json:"comment,omitempty"`
 }
 
 type contest struct {
@@ -55,11 +55,11 @@ type contestList struct {
 var upcoming = contestList{}
 
 func Init(s *discordgo.Session) error {
-	startContestUpdate(&upcoming, 1 * time.Hour)
+	startContestUpdate(&upcoming, 1*time.Hour)
 	if err := updatePingChannels(s); err != nil {
 		return err
 	}
-	startContestPingCheck(&upcoming, 1 * time.Second, s)
+	startContestPingCheck(&upcoming, 1*time.Second, s)
 	return nil
 }
 

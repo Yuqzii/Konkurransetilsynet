@@ -38,7 +38,7 @@ func checkContestPing(contests *contestList, session *discordgo.Session) {
 		shouldPing := contest.StartTimeSeconds-curTime <= pingTime
 		if shouldPing && !contest.Pinged {
 			// Unlock reading to allow contestPing to write
-			contests.mu.RUnlock() 
+			contests.mu.RUnlock()
 
 			log.Println("Pinging contest", contest.Name)
 			err := contestPing(contests, i, session)
