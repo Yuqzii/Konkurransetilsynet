@@ -59,7 +59,7 @@ func Init(s *discordgo.Session) error {
 	if err := updatePingChannels(s); err != nil {
 		return err
 	}
-	startContestPingCheck(&upcoming, 1*time.Second, s)
+	startContestPingCheck(&upcoming, 1*time.Minute, s)
 	return nil
 }
 
