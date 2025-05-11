@@ -24,9 +24,24 @@ func main() {
 		log.Fatal("Could not create bot, ", err)
 	}
 
-	cfManager, err := codeforces.NewManager(session)
+	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
+
+	err = session.Open()
 	if err != nil {
-		log.Fatal("Could not create Codeforces manager,", err)
+		log.Fatal("Could not open session with token ", err)
+	}
+
+	// Close session when application exits
+	defer func() {
+		err = session.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	err = codeforces.Init(session)
+	if err != nil {
+		log.Fatal("Could not initialize Codeforces package:", err)
 	}
 
 	session.AddHandler(func(session *discordgo.Session, message *discordgo.MessageCreate) {
@@ -52,7 +67,10 @@ func main() {
 			}
 
 		case "cf":
-			cfManager.HandleCodeforcesCommands(args, session, message)
+			err := codeforces.HandleCodeforcesCommands(args, session, message)
+			if err != nil {
+				log.Println("Codeforces command failed:", err)
+			}
 
 		case "guessTheFunction":
 			guessTheFunction.HandleGuessTheFunctionCommands(args, session, message)
@@ -64,26 +82,6 @@ func main() {
 			}
 		}
 	})
-
-	session.Identify.Intents = discordgo.IntentsAllWithoutPrivileged
-
-	err = session.Open()
-	if err != nil {
-		log.Fatal("Could not open session with token ", err)
-	}
-
-	err = cfManager.InitPingChannel(session)
-	if err != nil {
-		log.Println("Could not initialize Codeforces ping channel, ", err)
-	}
-
-	// Close session when application exits
-	defer func() {
-		err = session.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
 
 	log.Println("Bot is online")
 

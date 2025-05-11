@@ -7,14 +7,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func (manager *manager) listFutureContests(session *discordgo.Session,
-	message *discordgo.MessageCreate) error {
-
-	err := manager.updateUpcomingContests()
-	if err != nil {
-		return err
-	}
-
+func listContests(contests *contestList, s *discordgo.Session, m *discordgo.MessageCreate) error {
 	embed := discordgo.MessageEmbed{
 		Title:     "Upcoming Codeforces contests",
 		URL:       "https://codeforces.com/contests",
@@ -23,7 +16,8 @@ func (manager *manager) listFutureContests(session *discordgo.Session,
 	}
 
 	// Add embed for each contest
-	for _, contest := range manager.upcomingContests {
+	contests.mu.RLock()
+	for _, contest := range contests.contests {
 		if contest.Phase == "BEFORE" {
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name:   contest.Name,
@@ -39,7 +33,8 @@ func (manager *manager) listFutureContests(session *discordgo.Session,
 			})
 		}
 	}
+	contests.mu.RUnlock()
 
-	_, err = session.ChannelMessageSendEmbed(message.ChannelID, &embed)
+	_, err := s.ChannelMessageSendEmbed(m.ChannelID, &embed)
 	return err
 }

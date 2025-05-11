@@ -3,48 +3,68 @@ package codeforces
 import (
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
 
+// !! Lock mutex when accessing
+type pingChannelIDs struct {
+	list []string
+	mu   sync.RWMutex
+}
+
+var pingChannels = pingChannelIDs{}
+
 const pingTime int = 1 * 3600 // 1 hour
 
 // Start goroutine that checks whether it should issue a ping for upcoming contests
-func (man *manager) startContestPingCheck(session *discordgo.Session) {
+func startContestPingCheck(contests *contestList, interval time.Duration, session *discordgo.Session) {
 	go func() {
 		for {
-			time.Sleep(1 * time.Minute)
-
-			man.checkContestPing(session)
+			time.Sleep(interval)
+			checkContestPing(contests, session)
 		}
 	}()
 }
 
-func (man *manager) checkContestPing(session *discordgo.Session) {
+func checkContestPing(contests *contestList, session *discordgo.Session) {
+	contests.mu.RLock()
+	defer contests.mu.RUnlock()
+
 	curTime := int(time.Now().Unix())
-	for _, contest := range man.upcomingContests {
+	for i, contest := range contests.contests {
 		shouldPing := contest.StartTimeSeconds-curTime <= pingTime
 		if shouldPing && !contest.Pinged {
+			// Unlock reading to allow contestPing to write
+			contests.mu.RUnlock()
+
 			log.Println("Pinging contest", contest.Name)
-			err := man.contestPing(contest, session)
+			err := contestPing(contests, i, session)
 			if err != nil {
-				log.Println("Automatic contest ping failed, ", err)
+				log.Println("Automatic contest ping failed:", err)
 			}
 		}
+		// Lock again to ensure safe access on next iteration
+		contests.mu.RLock()
 	}
 }
 
-func (man *manager) contestPing(contest *contest, session *discordgo.Session) error {
-	man.mu.Lock()
-	defer man.mu.Unlock()
-	contest.Pinged = true
+func contestPing(contests *contestList, idx int, session *discordgo.Session) error {
+	contests.mu.Lock()
+	contests.contests[idx].Pinged = true
+	contests.mu.Unlock()
 
-	for _, channel := range man.pingChannelIDs {
-		// !!!! UPDATE FOR PRODUCTION, using temporary hardcoded role id
+	contests.mu.RLock()
+	defer contests.mu.RUnlock()
+	pingChannels.mu.RLock()
+	defer pingChannels.mu.RUnlock()
+	for _, channel := range pingChannels.list {
+		// TODO: Find role id belonging to each server and ping it
 		_, err := session.ChannelMessageSend(channel,
-			fmt.Sprint("<@&1369025298359648358>", contest.Name,
-				fmt.Sprintf("is starting <t:%d:R>", contest.StartTimeSeconds)))
+			fmt.Sprint("@<role> ", contests.contests[idx].Name,
+				fmt.Sprintf(" is starting <t:%d:R>", contests.contests[idx].StartTimeSeconds)))
 		if err != nil {
 			return err
 		}
@@ -53,16 +73,28 @@ func (man *manager) contestPing(contest *contest, session *discordgo.Session) er
 	return nil
 }
 
-func (man *manager) InitPingChannel(session *discordgo.Session) error {
+func updatePingChannels(s *discordgo.Session) error {
+	ids, err := getPingChannels(s)
+	if err != nil {
+		return err
+	}
+
+	pingChannels.mu.Lock()
+	defer pingChannels.mu.Unlock()
+
+	pingChannels.list = ids
+	return nil
+}
+
+func getPingChannels(s *discordgo.Session) ([]string, error) {
 	const channelName string = "contest-pings"
 
-	// Clear pingChannelIDs of possible existing IDs
-	man.pingChannelIDs = nil
+	var result []string
 
-	for _, guild := range session.State.Guilds {
-		channels, err := session.GuildChannels(guild.ID)
+	for _, guild := range s.State.Guilds {
+		channels, err := s.GuildChannels(guild.ID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		pingChannel := ""
@@ -80,18 +112,18 @@ func (man *manager) InitPingChannel(session *discordgo.Session) error {
 
 		if pingChannel == "" {
 			// The server does not have a ping channel
-			newChannel, err := session.GuildChannelCreate(guild.ID, channelName, discordgo.ChannelTypeGuildText)
+			newChannel, err := s.GuildChannelCreate(guild.ID, channelName, discordgo.ChannelTypeGuildText)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
-			log.Println("Created ping channel, ", newChannel.ID)
+			log.Println("Created ping channel,", newChannel.ID)
 			pingChannel = newChannel.ID
 		}
 
-		man.pingChannelIDs = append(man.pingChannelIDs, pingChannel)
-		log.Println("Found ping channel, ", pingChannel)
+		result = append(result, pingChannel)
+		log.Println("Found ping channel,", pingChannel)
 	}
 
-	return nil
+	return result, nil
 }
