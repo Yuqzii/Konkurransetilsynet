@@ -69,8 +69,8 @@ func contestPing(contests *contestList, idx int, session *discordgo.Session) err
 	for _, data := range pingList.list {
 		// TODO: Find role id belonging to each server and ping it
 		_, err := session.ChannelMessageSend(data.channel,
-			fmt.Sprint("@<role> ", contests.contests[idx].Name,
-				fmt.Sprintf(" is starting <t:%d:R>", contests.contests[idx].StartTimeSeconds)))
+			fmt.Sprintf("<@&%s> **%s** is starting <t:%d:R>",
+				data.role, contests.contests[idx].Name, contests.contests[idx].StartTimeSeconds))
 		if err != nil {
 			return err
 		}
@@ -142,7 +142,7 @@ func getPingData(s *discordgo.Session) ([]pingData, error) {
 		// Create ping role if server does not have one
 		if pingRole == "" {
 			newRole, err := s.GuildRoleCreate(guild.ID, &discordgo.RoleParams{
-				Name: roleName,
+				Name:        roleName,
 				Mentionable: boolPointer(true),
 			})
 			if err != nil {
