@@ -1,6 +1,7 @@
 package codeforces
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -9,13 +10,18 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+type pingData struct {
+	channel string
+	role    string
+}
+
 // !! Lock mutex when accessing
-type pingChannelIDs struct {
-	list []string
+type pingDataList struct {
+	list []pingData
 	mu   sync.RWMutex
 }
 
-var pingChannels = pingChannelIDs{}
+var pingList = pingDataList{}
 
 const pingTime int = 1 * 3600 // 1 hour
 
@@ -58,11 +64,11 @@ func contestPing(contests *contestList, idx int, session *discordgo.Session) err
 
 	contests.mu.RLock()
 	defer contests.mu.RUnlock()
-	pingChannels.mu.RLock()
-	defer pingChannels.mu.RUnlock()
-	for _, channel := range pingChannels.list {
+	pingList.mu.RLock()
+	defer pingList.mu.RUnlock()
+	for _, data := range pingList.list {
 		// TODO: Find role id belonging to each server and ping it
-		_, err := session.ChannelMessageSend(channel,
+		_, err := session.ChannelMessageSend(data.channel,
 			fmt.Sprint("@<role> ", contests.contests[idx].Name,
 				fmt.Sprintf(" is starting <t:%d:R>", contests.contests[idx].StartTimeSeconds)))
 		if err != nil {
@@ -73,31 +79,32 @@ func contestPing(contests *contestList, idx int, session *discordgo.Session) err
 	return nil
 }
 
-func updatePingChannels(s *discordgo.Session) error {
-	ids, err := getPingChannels(s)
+func updatePingData(s *discordgo.Session) error {
+	data, err := getPingData(s)
 	if err != nil {
 		return err
 	}
 
-	pingChannels.mu.Lock()
-	defer pingChannels.mu.Unlock()
+	pingList.mu.Lock()
+	defer pingList.mu.Unlock()
 
-	pingChannels.list = ids
+	pingList.list = data
 	return nil
 }
 
-func getPingChannels(s *discordgo.Session) ([]string, error) {
+func getPingData(s *discordgo.Session) ([]pingData, error) {
 	const channelName string = "contest-pings"
+	const roleName string = "Contest Ping"
 
-	var result []string
+	var result []pingData
 
 	for _, guild := range s.State.Guilds {
 		channels, err := s.GuildChannels(guild.ID)
 		if err != nil {
 			return nil, err
 		}
-
 		pingChannel := ""
+		// Try to find a channel with the name
 		for _, channel := range channels {
 			// Skip non-text channels
 			if channel.Type != discordgo.ChannelTypeGuildText {
@@ -109,9 +116,8 @@ func getPingChannels(s *discordgo.Session) ([]string, error) {
 				break
 			}
 		}
-
+		// Create ping channel if server does not have one
 		if pingChannel == "" {
-			// The server does not have a ping channel
 			newChannel, err := s.GuildChannelCreate(guild.ID, channelName, discordgo.ChannelTypeGuildText)
 			if err != nil {
 				return nil, err
@@ -121,9 +127,40 @@ func getPingChannels(s *discordgo.Session) ([]string, error) {
 			pingChannel = newChannel.ID
 		}
 
-		result = append(result, pingChannel)
+		roles, err := s.GuildRoles(guild.ID)
+		if err != nil {
+			return nil, err
+		}
+		pingRole := ""
+		// Try to find role with correct name
+		for _, role := range roles {
+			if role.Name == roleName {
+				pingRole = role.ID
+				break
+			}
+		}
+		// Create ping role if server does not have one
+		if pingRole == "" {
+			newRole, err := s.GuildRoleCreate(guild.ID, &discordgo.RoleParams{
+				Name: roleName,
+				Mentionable: boolPointer(true),
+			})
+			if err != nil {
+				return nil, errors.Join(errors.New("failed to create ping role:"), err)
+			}
+
+			log.Println("Created ping role:", newRole.ID)
+			pingRole = newRole.ID
+		}
+
+		result = append(result, pingData{pingChannel, pingRole})
 		log.Println("Found ping channel,", pingChannel)
 	}
 
 	return result, nil
+}
+
+// GuildRoleCreate wants a *bool, which cannot be made easily without a helper function like this
+func boolPointer(b bool) *bool {
+	return &b
 }

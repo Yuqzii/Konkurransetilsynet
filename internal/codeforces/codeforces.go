@@ -56,7 +56,7 @@ var upcoming = contestList{}
 
 func Init(s *discordgo.Session) error {
 	startContestUpdate(&upcoming, 1*time.Hour)
-	if err := updatePingChannels(s); err != nil {
+	if err := updatePingData(s); err != nil {
 		return err
 	}
 	startContestPingCheck(&upcoming, 1*time.Minute, s)
