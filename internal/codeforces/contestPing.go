@@ -61,7 +61,7 @@ func contestPing(contests *contestList, idx int, session *discordgo.Session) err
 	pingChannels.mu.RLock()
 	defer pingChannels.mu.RUnlock()
 	for _, channel := range pingChannels.list {
-		// !!!! UPDATE FOR PRODUCTION, using temporary hardcoded role id
+		// TODO: Find role id belonging to each server and ping it
 		_, err := session.ChannelMessageSend(channel,
 			fmt.Sprint("@<role> ", contests.contests[idx].Name,
 				fmt.Sprintf(" is starting <t:%d:R>", contests.contests[idx].StartTimeSeconds)))
