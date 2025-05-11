@@ -30,12 +30,15 @@ func startContestPingCheck(contests *contestList, interval time.Duration, sessio
 	go func() {
 		for {
 			time.Sleep(interval)
-			checkContestPing(contests, session)
+			err := checkContestPing(contests, session)
+			if err != nil {
+				log.Println("Automatic contest ping failed:", err)
+			}
 		}
 	}()
 }
 
-func checkContestPing(contests *contestList, session *discordgo.Session) {
+func checkContestPing(contests *contestList, session *discordgo.Session) error {
 	contests.mu.RLock()
 	defer contests.mu.RUnlock()
 
@@ -45,16 +48,16 @@ func checkContestPing(contests *contestList, session *discordgo.Session) {
 		if shouldPing && !contest.Pinged {
 			// Unlock reading to allow contestPing to write
 			contests.mu.RUnlock()
-
-			log.Println("Pinging contest", contest.Name)
 			err := contestPing(contests, i, session)
+			// Lock again to ensure safe access on next iteration
+			contests.mu.RLock()
 			if err != nil {
-				log.Println("Automatic contest ping failed:", err)
+				return errors.Join(errors.New("failed to ping contest:"), err)
 			}
 		}
-		// Lock again to ensure safe access on next iteration
-		contests.mu.RLock()
 	}
+
+	return nil
 }
 
 func contestPing(contests *contestList, idx int, session *discordgo.Session) error {
