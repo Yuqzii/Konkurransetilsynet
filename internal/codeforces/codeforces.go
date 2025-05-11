@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"sync"
@@ -24,25 +25,24 @@ type contestListAPI struct {
 }
 
 type contest struct {
-	Pinged                bool
-	ID                    int    `json:"id"`
+	ID                    uint32 `json:"id"`
 	Name                  string `json:"name"`
 	Type                  string `json:"type"`
 	Phase                 string `json:"phase"`
 	Frozen                bool   `json:"frozen"`
-	DurationSeconds       int    `json:"durationSeconds"`
+	DurationSeconds       uint32 `json:"durationSeconds"`
 	Description           string `json:"description,omitempty"`
-	Difficulty            int    `json:"difficulty,omitempty"`
+	Difficulty            uint8  `json:"difficulty,omitempty"`
 	Kind                  string `json:"kind,omitempty"`
 	Season                string `json:"season,omitempty"`
-	StartTimeSeconds      int    `json:"startTimeSeconds,omitempty"`
-	RelativeTimeSeconds   int    `json:"relativeTimeSeconds,omitempty"`
+	StartTimeSeconds      uint32 `json:"startTimeSeconds,omitempty"`
+	RelativeTimeSeconds   int32 `json:"relativeTimeSeconds,omitempty"`
 	PreparedBy            string `json:"preparedBy,omitempty"`
 	Country               string `json:"country,omitempty"`
 	City                  string `json:"city,omitempty"`
 	IcpcRegion            string `json:"icpcRegion,omitempty"`
 	WebsiteURL            string `json:"websiteUrl,omitempty"`
-	FreezeDurationSeconds int    `json:"freezeDurationSeconds,omitempty"`
+	FreezeDurationSeconds uint32 `json:"freezeDurationSeconds,omitempty"`
 }
 
 // !! Lock mutex when accessing
@@ -75,18 +75,26 @@ func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.
 			return errors.Join(errors.New("listing future contests failed"), err)
 		}
 	case "addDebugContest":
-		if len(args) != 4 {
+		if len(args) != 5 {
 			err := messageCommands.UnknownCommand(s, m)
 			return err
 		}
 
-		startTime, err := strconv.Atoi(args[3])
+		startTime64, err := strconv.ParseUint(args[3], 10, 32)
 		if err != nil {
 			err = errors.Join(err, messageCommands.UnknownCommand(s, m))
 			return err
 		}
+		startTime := uint32(startTime64)
 
-		addContest(&upcoming, args[2], startTime)
+		id64, err := strconv.ParseUint(args[4], 10, 32)
+		if err != nil {
+			err = errors.Join(err, messageCommands.UnknownCommand(s, m))
+			return err
+		}
+		id := uint32(id64)
+
+		addContest(&upcoming, id, args[2], startTime)
 	default:
 		err := messageCommands.UnknownCommand(s, m)
 		return err
@@ -108,26 +116,31 @@ func startContestUpdate(listToUpdate *contestList, interval time.Duration) {
 	}()
 }
 
-func addContest(contests *contestList, name string, startTime int) {
-	// Create new list of contests and the contest to it
+func addContest(contests *contestList, id uint32, name string, startTime uint32) {
+	// Copy contests into new slice to avoid concurrency issues when writing
 	contests.mu.RLock()
 	newContests := make([]contest, len(contests.contests))
-	copy(contests.contests, newContests)
+	copy(newContests, contests.contests)
 	contests.mu.RUnlock()
 
-	newContests = append(newContests, contest{
+	// Find position to insert into slice to maintain sorted order
+	i := sort.Search(len(newContests), func(i int) bool {
+		return newContests[i].StartTimeSeconds >= startTime
+	})
+	// Insert new contest into slice at the correct position
+	newContests = slices.Insert(newContests, i, contest{
+		ID:               id,
 		Name:             name,
 		StartTimeSeconds: startTime,
-		Pinged:           false,
 	})
 
-	// Update the shared value with our new one
+	// Update contests to our slice containing the new element
 	contests.mu.Lock()
 	contests.contests = newContests
 	contests.mu.Unlock()
 }
 
-// Updates upcoming contests with data from the Codeforces API
+// Updates listToUpdate with upcoming contests from the Codeforces API
 func updateUpcoming(listToUpdate *contestList) error {
 	contests, err := getContests()
 	if err != nil {

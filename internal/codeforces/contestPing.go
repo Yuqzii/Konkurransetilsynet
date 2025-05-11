@@ -22,8 +22,9 @@ type pingDataList struct {
 }
 
 var pingList = pingDataList{}
+var pingedIDs = make(map[uint32]struct{}) // Set for pinged contests
 
-const pingTime int = 1 * 3600 // 1 hour
+const pingTime uint32 = 1 * 3600 // 1 hour
 
 // Start goroutine that checks whether it should issue a ping for upcoming contests
 func startContestPingCheck(contests *contestList, interval time.Duration, session *discordgo.Session) {
@@ -42,18 +43,18 @@ func checkContestPing(contests *contestList, session *discordgo.Session) error {
 	contests.mu.RLock()
 	defer contests.mu.RUnlock()
 
-	curTime := int(time.Now().Unix())
+	curTime := uint32(time.Now().Unix())
 	for i, contest := range contests.contests {
 		shouldPing := contest.StartTimeSeconds-curTime <= pingTime
-		if shouldPing && !contest.Pinged {
-			// Unlock reading to allow contestPing to write
-			contests.mu.RUnlock()
+		_, isPinged := pingedIDs[contest.ID]
+		if shouldPing && !isPinged {
 			err := contestPing(contests, i, session)
-			// Lock again to ensure safe access on next iteration
-			contests.mu.RLock()
 			if err != nil {
 				return errors.Join(errors.New("failed to ping contest:"), err)
 			}
+		} else if !shouldPing {
+			// Contests are sorted, so no more contests should be pinged after the first that should
+			break
 		}
 	}
 
@@ -61,12 +62,12 @@ func checkContestPing(contests *contestList, session *discordgo.Session) error {
 }
 
 func contestPing(contests *contestList, idx int, session *discordgo.Session) error {
-	contests.mu.Lock()
-	contests.contests[idx].Pinged = true
-	contests.mu.Unlock()
-
 	contests.mu.RLock()
 	defer contests.mu.RUnlock()
+
+	// Add contest ID to set
+	pingedIDs[contests.contests[idx].ID] = struct{}{}
+
 	pingList.mu.RLock()
 	defer pingList.mu.RUnlock()
 	for _, data := range pingList.list {
