@@ -49,5 +49,5 @@ jobs:
         run: go build -v ./...
 
       - name: Test
-        if: steps.build.outcome == "success"
+        if: steps.build.outcome == 'success'
         run: go test ./...
