@@ -4,9 +4,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"unicode/utf8"
+	"strings"
 
 	"github.com/yuqzii/konkurransetilsynet/internal"
 	"github.com/yuqzii/konkurransetilsynet/internal/codeforces"
@@ -43,6 +43,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Could not initialize Codeforces package:", err)
 	}
+
+
 
 	session.AddHandler(func(session *discordgo.Session, message *discordgo.MessageCreate) {
 		// Don't react to messages from this bot
