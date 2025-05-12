@@ -44,8 +44,10 @@ jobs:
         run: go mod verify
         
       - name: Build
+        id: build
         if: success() || failure()
         run: go build -v ./...
 
       - name: Test
+        if: steps.build.outcome == "success"
         run: go test ./...
