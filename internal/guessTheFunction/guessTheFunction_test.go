@@ -1,6 +1,7 @@
 package guessTheFunction
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -35,13 +36,16 @@ func TestMakeNewFunction_Linear(t *testing.T) {
 			Number{Value: 12}, Subtract{Variable{}, Number{Value: 2}},
 		}}},
 
-		{"x-210+x+1", Function{Subtract{
-			Variable{},
-			Add{
+		{"x-210+x+1", Function{Add{
+			Subtract{
+				Variable{},
 				Number{Value: 210},
-				Add{Variable{}, Number{Value: 1}},
 			},
-		}}},
+			Add{
+				Variable{},
+				Number{Value: 1},
+			}},
+		}},
 
 		{"3*x+2", Function{Add{
 			Multiply{Number{Value: 3}, Variable{}},
@@ -79,7 +83,9 @@ func TestMakeNewFunction_Linear(t *testing.T) {
 	for index, testData := range functionDefinitions {
 		parsedFunction, err := MakeNewFunction(testData.input)
 		if err != nil {
-			t.Log("unexpected error on function idx,", index, "error,", err)
+			fmt.Println("unexpected error on function idx,", index, "error,", err)
+			t.Fail()
+			continue
 		}
 
 		expectedFunction := testData.answer
@@ -89,7 +95,7 @@ func TestMakeNewFunction_Linear(t *testing.T) {
 			difference := math.Abs(parsedFunction.Eval(x) - expectedFunction.Eval(x))
 
 			if difference > maxTolerableError {
-				t.Log("failed on test idx", index, "function,", testData.input)
+				t.Logf("failed on test idx %d function, %s x: %f y: %f y_pred: %f", index, testData.input, x, expectedFunction.Eval(x), parsedFunction.Eval(x))
 			}
 		}
 
