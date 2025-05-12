@@ -3,21 +3,22 @@ on:
   pull_request:
   
 jobs:
-  golangci:
+  lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version: "stable"
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
           version: v2.0
           
   build:
-    name: Format and build
+    name: Build, format, and test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,26 +29,25 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "stable"
-          check-latest: true
-      - name: Gofmt
-        run: gofmt -s -w .
-      - name: Go Tidy
-        run: go mod tidy
-      - name: Commit formatting changes
-        uses: EndBug/add-and-commit@v9
-        with:
-          message: "chore: fix formatting"
+
+      - name: Check formatting
+        run: files="$(gofmt -l ./)" && echo "$files" && test -z "$files"
           
       - name: Go Vet
+        if: success() || failure()
         run: go vet ./...
       - name: Go Mod
+        if: success() || failure()
         run: go mod download
       - name: Go Mod Verify
+        if: success() || failure()
         run: go mod verify
         
       - name: Build
-        run: go build -o /dev/null ./...
+        id: build
+        if: success() || failure()
+        run: go build -v ./...
 
       - name: Test
+        if: (success() || failure()) && steps.build.outcome == 'success'
         run: go test ./...
-        continue-on-error: true
