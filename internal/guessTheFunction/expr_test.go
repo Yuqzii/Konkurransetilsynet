@@ -7,7 +7,8 @@ import (
 	"testing"
 )
 
-func TestMarshalAndUnMarshal(t *testing.T) {
+func Test_MarshalAndUnMarshal(t *testing.T) {
+	// Defined as code since loading is being tested
 	functionDefinitions := [...]Expr{
 		Add{
 			Variable{}, Number{Value: 10}},
@@ -87,7 +88,7 @@ func TestMarshalAndUnMarshal(t *testing.T) {
 
 			for i := 0; i < numberSamplesPerFunctionTest; i++ {
 				x := rand.Float64() * 100
-				difference := math.Abs(loadedExpr.Eval(x+1) - functionExpr.Eval(x))
+				difference := math.Abs(loadedExpr.Eval(x) - functionExpr.Eval(x))
 
 				if difference > maxTolerableError {
 					t.Logf("failed on test index: %d, x: %f, y: %f, y_reconstruct: %f", index, x, functionExpr.Eval(x), loadedExpr.Eval(x))
