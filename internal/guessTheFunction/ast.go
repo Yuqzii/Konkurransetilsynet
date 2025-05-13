@@ -4,67 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"strconv"
 )
-
-type Expr interface {
-	Eval(x float64) float64
-}
-
-type Number struct {
-	Value float64
-}
-
-type Variable struct{}
-
-type Add struct {
-	Left, Right Expr
-}
-
-type Subtract struct {
-	Left, Right Expr
-}
-
-type Multiply struct {
-	Left, Right Expr
-}
-
-type Divide struct {
-	Left, Right Expr
-}
-
-type Power struct {
-	Base, Exponent Expr
-}
-
-func (n Number) Eval(x float64) float64 {
-	return n.Value
-}
-
-func (v Variable) Eval(x float64) float64 {
-	return x
-}
-
-func (a Add) Eval(x float64) float64 {
-	return a.Left.Eval(x) + a.Right.Eval(x)
-}
-
-func (s Subtract) Eval(x float64) float64 {
-	return s.Left.Eval(x) - s.Right.Eval(x)
-}
-
-func (m Multiply) Eval(x float64) float64 {
-	return m.Left.Eval(x) * m.Right.Eval(x)
-}
-
-func (d Divide) Eval(x float64) float64 {
-	return d.Left.Eval(x) / d.Right.Eval(x)
-}
-
-func (p Power) Eval(x float64) float64 {
-	return math.Pow(p.Base.Eval(x), p.Exponent.Eval(x))
-}
 
 // Finds first index that matches one of the given operators
 func findFirstBinaryOperatorOfType(operators []int, tokens []Token) int {
@@ -134,19 +75,7 @@ func buildASTRecursive(tokens []Token) (Expr, error) {
 		}
 	}
 
-	// Leading unary minus
-	if tokens[0].Type == SUBTRACTION_TOKEN {
-		right, err := buildASTRecursive(tokens[1:])
-		if err != nil {
-			return nil, err
-		}
-		return Multiply{
-			Left:  Number{Value: -1},
-			Right: right,
-		}, nil
-	}
-
-	// order of precedence least to most
+	// Order of precedence, lowest to highest
 	precedenceTokenTypes := [][]int{
 		{ADDITION_TOKEN, SUBTRACTION_TOKEN},
 		{MULTIPLICATION_TOKEN, DIVISION_TOKEN},
@@ -180,6 +109,18 @@ func buildASTRecursive(tokens []Token) (Expr, error) {
 				return nil, fmt.Errorf("unexpected token %v when building precedence tokens", tokens[idx])
 			}
 		}
+	}
+
+	// Leading unary minus
+	if tokens[0].Type == SUBTRACTION_TOKEN {
+		right, err := buildASTRecursive(tokens[1:])
+		if err != nil {
+			return nil, err
+		}
+		return Multiply{
+			Left:  Number{Value: -1},
+			Right: right,
+		}, nil
 	}
 
 	// Single token

@@ -5,19 +5,10 @@ import (
 	"log"
 )
 
-// Function is a parsed, evaluable function
-type Function struct {
-	Expression Expr
-}
-
-func (f *Function) Eval(x float64) float64 {
-	return f.Expression.Eval(x)
-}
-
 // MakeNewFunction
 // functionDefinition a string which defines the function, mostly simple pythonic syntax
 // returns a Function type, call .eval(x) to evaluate the function
-func MakeNewFunction(functionDefinition string) (*Function, error) {
+func MakeNewFunction(functionDefinition string) (Expr, error) {
 	tokens, lexError := TokenizeInput(functionDefinition)
 	if lexError != nil {
 		log.Println("error running lexical analysis on input, ", functionDefinition, ", error,", lexError)
@@ -30,5 +21,5 @@ func MakeNewFunction(functionDefinition string) (*Function, error) {
 		return nil, errors.New("error building AST from tokens")
 	}
 
-	return &Function{Expression: expr}, nil
+	return expr, nil
 }

@@ -1,0 +1,293 @@
+[
+    {
+        "input": "x+10",
+        "expected": {
+            "type": "Add",
+            "left": {
+                "type": "Variable"
+            },
+            "right": {
+                "type": "Number",
+                "value": {
+                    "value": 10
+                }
+            }
+        }
+    },
+    {
+        "input": "x+1",
+        "expected": {
+            "type": "Add",
+            "left": {
+                "type": "Variable"
+            },
+            "right": {
+                "type": "Number",
+                "value": {
+                    "value": 1
+                }
+            }
+        }
+    },
+    {
+        "input": "x-31",
+        "expected": {
+            "type": "Subtract",
+            "left": {
+                "type": "Variable"
+            },
+            "right": {
+                "type": "Number",
+                "value": {
+                    "value": 31
+                }
+            }
+        }
+    },
+    {
+        "input": "x-9",
+        "expected": {
+            "type": "Subtract",
+            "left": {
+                "type": "Variable"
+            },
+            "right": {
+                "type": "Number",
+                "value": {
+                    "value": 9
+                }
+            }
+        }
+    },
+    {
+        "input": "x+13+3",
+        "expected": {
+            "type": "Add",
+            "left": {
+                "type": "Variable"
+            },
+            "right": {
+                "type": "Add",
+                "left": {
+                    "type": "Number",
+                    "value": {
+                        "value": 13
+                    }
+                },
+                "right": {
+                    "type": "Number",
+                    "value": {
+                        "value": 3
+                    }
+                }
+            }
+        }
+    },
+    {
+        "input": "12+x-2",
+        "expected": {
+            "type": "Add",
+            "left": {
+                "type": "Number",
+                "value": {
+                    "value": 12
+                }
+            },
+            "right": {
+                "type": "Subtract",
+                "left": {
+                    "type": "Variable"
+                },
+                "right": {
+                    "type": "Number",
+                    "value": {
+                        "value": 2
+                    }
+                }
+            }
+        }
+    },
+    {
+        "input": "x-210+x+1",
+        "expected": {
+            "type": "Add",
+            "left": {
+                "type": "Subtract",
+                "left": {
+                    "type": "Variable"
+                },
+                "right": {
+                    "type": "Number",
+                    "value": {
+                        "value": 210
+                    }
+                }
+            },
+            "right": {
+                "type": "Add",
+                "left": {
+                    "type": "Variable"
+                },
+                "right": {
+                    "type": "Number",
+                    "value": {
+                        "value": 1
+                    }
+                }
+            }
+        }
+    },
+    {
+        "input": "3*x+2",
+        "expected": {
+            "type": "Add",
+            "left": {
+                "type": "Multiply",
+                "left": {
+                    "type": "Number",
+                    "value": {
+                        "value": 3
+                    }
+                },
+                "right": {
+                    "type": "Variable"
+                }
+            },
+            "right": {
+                "type": "Number",
+                "value": {
+                    "value": 2
+                }
+            }
+        }
+    },
+    {
+        "input": "10*x-9",
+        "expected": {
+            "type": "Subtract",
+            "left": {
+                "type": "Multiply",
+                "left": {
+                    "type": "Number",
+                    "value": {
+                        "value": 10
+                    }
+                },
+                "right": {
+                    "type": "Variable"
+                }
+            },
+            "right": {
+                "type": "Number",
+                "value": {
+                    "value": 9
+                }
+            }
+        }
+    },
+    {
+        "input": "-10*x+3",
+        "expected": {
+            "type": "Add",
+            "left": {
+                "type": "Multiply",
+                "left": {
+                    "type": "Number",
+                    "value": {
+                        "value": -10
+                    }
+                },
+                "right": {
+                    "type": "Variable"
+                }
+            },
+            "right": {
+                "type": "Number",
+                "value": {
+                    "value": 3
+                }
+            }
+        }
+    },
+    {
+        "input": "x*-5+10",
+        "expected": {
+            "type": "Add",
+            "left": {
+                "type": "Multiply",
+                "left": {
+                    "type": "Variable"
+                },
+                "right": {
+                    "type": "Number",
+                    "value": {
+                        "value": -5
+                    }
+                }
+            },
+            "right": {
+                "type": "Number",
+                "value": {
+                    "value": 10
+                }
+            }
+        }
+    },
+    {
+        "input": "-1+7*x",
+        "expected": {
+            "type": "Add",
+            "left": {
+                "type": "Number",
+                "value": {
+                    "value": -1
+                }
+            },
+            "right": {
+                "type": "Multiply",
+                "left": {
+                    "type": "Number",
+                    "value": {
+                        "value": 7
+                    }
+                },
+                "right": {
+                    "type": "Variable"
+                }
+            }
+        }
+    },
+    {
+        "input": "-1",
+        "expected": {
+            "type": "Number",
+            "value": {
+                "value": -1
+            }
+        }
+    },
+    {
+        "input": "1+-x",
+        "expected": {
+            "type": "Add",
+            "left": {
+                "type": "Number",
+                "value": {
+                    "value": 1
+                }
+            },
+            "right": {
+                "type": "Multiply",
+                "left": {
+                    "type": "Number",
+                    "value": {
+                        "value": -1
+                    }
+                },
+                "right": {
+                    "type": "Variable"
+                }
+            }
+        }
+    }
+]

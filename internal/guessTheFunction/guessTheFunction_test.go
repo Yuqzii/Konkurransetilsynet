@@ -1,103 +1,118 @@
 package guessTheFunction
 
 import (
-	"fmt"
+	"encoding/json"
+	"io/fs"
 	"math"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"testing"
 )
-
-type testData struct {
-	input  string
-	answer Function
-}
 
 const numberSamplesPerFunctionTest int = 100
 const maxTolerableError float64 = 1e-5
 
-func TestMakeNewFunction_Linear(t *testing.T) {
-	functionDefinitions := [...]testData{
-		{"x+10", Function{Add{
-			Variable{}, Number{Value: 10}}}},
+type testData struct {
+	Input    string `json:"input"`
+	Expected Expr   `json:"expected"`
+}
 
-		{"x+1", Function{Add{
-			Variable{}, Number{Value: 1}}}},
+func (td *testData) MarshalJSON() ([]byte, error) {
+	var jsonFormat struct {
+		Input    string          `json:"input"`
+		Expected json.RawMessage `json:"expected"`
+	}
+	jsonFormat.Input = td.Input
+	data, err := MarshalExpr(td.Expected)
+	if err != nil {
+		return nil, err
+	}
+	jsonFormat.Expected = data
 
-		{"x-31", Function{Subtract{
-			Variable{}, Number{Value: 31}}}},
+	return json.Marshal(jsonFormat)
+}
 
-		{"x-9", Function{Subtract{
-			Variable{}, Number{Value: 9}}}},
+func (td *testData) UnmarshalJSON(data []byte) error {
+	var jsonFormat struct {
+		Input    string          `json:"input"`
+		Expected json.RawMessage `json:"expected"`
+	}
+	if err := json.Unmarshal(data, &jsonFormat); err != nil {
+		return err
+	}
 
-		{"x+13+3", Function{Add{
-			Variable{}, Add{Number{Value: 13}, Number{Value: 3}}}}},
+	td.Input = jsonFormat.Input
+	expr, err := UnmarshalExpr(jsonFormat.Expected)
+	if err != nil {
+		return err
+	}
+	td.Expected = expr
+	return nil
+}
 
-		{"12+x-2", Function{Add{
-			Number{Value: 12}, Subtract{Variable{}, Number{Value: 2}},
-		}}},
+func loadAllTestCases(dir string) ([]testData, error) {
+	var allTests []testData
 
-		{"x-210+x+1", Function{Add{
-			Subtract{
-				Variable{},
-				Number{Value: 210},
-			},
-			Add{
-				Variable{},
-				Number{Value: 1},
-			}},
-		}},
+	// all files in dir
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 
-		{"3*x+2", Function{Add{
-			Multiply{Number{Value: 3}, Variable{}},
-			Number{Value: 2},
-		}}},
+		if filepath.Ext(path) == ".json" {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
 
-		{"10*x-9", Function{Subtract{
-			Multiply{Number{Value: 10}, Variable{}},
-			Number{Value: 9},
-		}}},
+			var tests []testData
+			if err := json.Unmarshal(data, &tests); err != nil {
+				return err
+			}
 
-		{"-10*x+3", Function{Add{
-			Multiply{Number{Value: -10}, Variable{}},
-			Number{Value: 3},
-		}}},
+			allTests = append(allTests, tests...)
+		}
 
-		{"x*-5+10", Function{Add{
-			Multiply{Variable{}, Number{Value: -5}},
-			Number{Value: 10},
-		}}},
+		return nil
+	})
 
-		{"-1+7*x", Function{Add{
-			Number{Value: -1},
-			Multiply{Number{Value: 7}, Variable{}},
-		}}},
+	if err != nil {
+		return nil, err
+	}
+	return allTests, nil
+}
 
-		{"-1", Function{Number{Value: -1}}},
-
-		{"1+-x", Function{Add{
-			Number{Value: 1},
-			Multiply{Number{Value: -1}, Variable{}},
-		}}},
+func TestMakeNewFunction(t *testing.T) {
+	functionDefinitions, err := loadAllTestCases("testdata")
+	if err != nil {
+		t.Fatalf("could not load test cases: %v", err)
 	}
 
 	for index, testData := range functionDefinitions {
-		parsedFunction, err := MakeNewFunction(testData.input)
-		if err != nil {
-			fmt.Println("unexpected error on function idx,", index, "error,", err)
-			t.Fail()
-			continue
-		}
-
-		expectedFunction := testData.answer
-
-		for i := 0; i < numberSamplesPerFunctionTest; i++ {
-			x := rand.Float64() * 100
-			difference := math.Abs(parsedFunction.Eval(x) - expectedFunction.Eval(x))
-
-			if difference > maxTolerableError {
-				t.Logf("failed on test idx %d function, %s x: %f y: %f y_pred: %f", index, testData.input, x, expectedFunction.Eval(x), parsedFunction.Eval(x))
+		t.Run(testData.Input, func(t *testing.T) {
+			parsedFunction, err := MakeNewFunction(testData.Input)
+			if err != nil {
+				t.Fatal("unexpected error on function idx,", index, "error,", err)
+				return
 			}
-		}
 
+			expectedFunction := testData.Expected
+
+			for i := 0; i < numberSamplesPerFunctionTest; i++ {
+				x := rand.Float64() * 100
+				difference := math.Abs(parsedFunction.Eval(x) - expectedFunction.Eval(x))
+
+				if difference > maxTolerableError {
+					data, err := MarshalExpr(parsedFunction)
+					if err != nil {
+						t.Logf("unpacking error %s", err)
+					} else {
+						t.Logf("decoded function: %s", string(data))
+					}
+					t.Fatalf("failed on test idx %d function, %s x: %f y: %f y_pred: %f", index, testData.Input, x, expectedFunction.Eval(x), parsedFunction.Eval(x))
+				}
+			}
+		})
 	}
 }
