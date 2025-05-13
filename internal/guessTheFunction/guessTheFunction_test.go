@@ -13,46 +13,8 @@ import (
 const numberSamplesPerFunctionTest int = 100
 const maxTolerableError float64 = 1e-5
 
-type testData struct {
-	Input    string `json:"input"`
-	Expected Expr   `json:"expected"`
-}
-
-func (td *testData) MarshalJSON() ([]byte, error) {
-	var jsonFormat struct {
-		Input    string          `json:"input"`
-		Expected json.RawMessage `json:"expected"`
-	}
-	jsonFormat.Input = td.Input
-	data, err := MarshalExpr(td.Expected)
-	if err != nil {
-		return nil, err
-	}
-	jsonFormat.Expected = data
-
-	return json.Marshal(jsonFormat)
-}
-
-func (td *testData) UnmarshalJSON(data []byte) error {
-	var jsonFormat struct {
-		Input    string          `json:"input"`
-		Expected json.RawMessage `json:"expected"`
-	}
-	if err := json.Unmarshal(data, &jsonFormat); err != nil {
-		return err
-	}
-
-	td.Input = jsonFormat.Input
-	expr, err := UnmarshalExpr(jsonFormat.Expected)
-	if err != nil {
-		return err
-	}
-	td.Expected = expr
-	return nil
-}
-
-func loadAllTestCases(dir string) ([]testData, error) {
-	var allTests []testData
+func loadAllTestCases(dir string) ([]TestCase, error) {
+	var allTests []TestCase
 
 	// all files in dir
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -66,7 +28,7 @@ func loadAllTestCases(dir string) ([]testData, error) {
 				return err
 			}
 
-			var tests []testData
+			var tests []TestCase
 			if err := json.Unmarshal(data, &tests); err != nil {
 				return err
 			}
@@ -101,14 +63,27 @@ func TestMakeNewFunction(t *testing.T) {
 
 			for i := 0; i < numberSamplesPerFunctionTest; i++ {
 				x := rand.Float64() * 100
-				difference := math.Abs(parsedFunction.Eval(x) - expectedFunction.Eval(x))
+				y_correct := expectedFunction.Eval(x)
+				y_parsed := parsedFunction.Eval(x)
 
-				if difference > maxTolerableError {
+				absolute_difference := math.Abs(y_parsed - y_correct)
+				y_average := (y_parsed + y_correct) / 2.0
+				
+				relative_difference := absolute_difference / y_average
+
+				if relative_difference > maxTolerableError {
 					data, err := MarshalExpr(parsedFunction)
 					if err != nil {
 						t.Logf("unpacking error %s", err)
 					} else {
 						t.Logf("decoded function: %s", string(data))
+					}
+
+					data, err = MarshalExpr(expectedFunction)
+					if err != nil {
+						t.Logf("unpacking error %s", err)
+					} else {
+						t.Logf("correct function: %s", string(data))
 					}
 					t.Fatalf("failed on test idx %d function, %s x: %f y: %f y_pred: %f", index, testData.Input, x, expectedFunction.Eval(x), parsedFunction.Eval(x))
 				}
