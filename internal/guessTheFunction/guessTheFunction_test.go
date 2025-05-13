@@ -68,7 +68,7 @@ func TestMakeNewFunction(t *testing.T) {
 
 				absolute_difference := math.Abs(y_parsed - y_correct)
 				y_average := (y_parsed + y_correct) / 2.0
-				
+
 				relative_difference := absolute_difference / y_average
 
 				if relative_difference > maxTolerableError {

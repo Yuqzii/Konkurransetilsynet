@@ -1,9 +1,9 @@
 package guessTheFunction
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
-	"encoding/json"
 
 	"github.com/bwmarrin/discordgo"
 )

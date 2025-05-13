@@ -93,9 +93,9 @@ func Test_MarshalAndUnMarshal(t *testing.T) {
 
 				absolute_difference := math.Abs(y_parsed - y_correct)
 				y_average := (y_parsed + y_correct) / 2.0
-				
+
 				relative_difference := absolute_difference / y_average
-				
+
 				if relative_difference > maxTolerableError {
 					t.Logf("failed on test index: %d, x: %f, y: %f, y_reconstruct: %f", index, x, functionExpr.Eval(x), loadedExpr.Eval(x))
 				}

@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
 	"os"
-	"fmt"
 )
 
 func saveTestCasesToFile(testCases []*guessTheFunction.TestCase, filename string) {
