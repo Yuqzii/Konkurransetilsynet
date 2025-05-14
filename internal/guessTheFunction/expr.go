@@ -4,80 +4,80 @@ import (
 	"math"
 )
 
-type Expr interface {
+type expr interface {
 	Eval(x float64) float64
 	isExpr()
 }
 
-type Number struct {
+type number struct {
 	Value float64 `json:"value"`
 }
 
-type Variable struct{}
+type variable struct{}
 
-type Add struct {
-	Left  Expr `json:"left"`
-	Right Expr `json:"right"`
+type add struct {
+	Left  expr `json:"left"`
+	Right expr `json:"right"`
 }
 
-type Subtract struct {
-	Left  Expr `json:"left"`
-	Right Expr `json:"right"`
+type subtract struct {
+	Left  expr `json:"left"`
+	Right expr `json:"right"`
 }
 
-type Multiply struct {
-	Left  Expr `json:"left"`
-	Right Expr `json:"right"`
+type multiply struct {
+	Left  expr `json:"left"`
+	Right expr `json:"right"`
 }
 
-type Divide struct {
-	Left  Expr `json:"left"`
-	Right Expr `json:"right"`
+type divide struct {
+	Left  expr `json:"left"`
+	Right expr `json:"right"`
 }
 
-type Power struct {
-	Base     Expr `json:"base"`
-	Exponent Expr `json:"exponent"`
+type power struct {
+	Base     expr `json:"base"`
+	Exponent expr `json:"exponent"`
 }
 
-func (n Number) Eval(x float64) float64 {
+func (n number) Eval(x float64) float64 {
 	return n.Value
 }
 
-func (v Variable) Eval(x float64) float64 {
+func (v variable) Eval(x float64) float64 {
 	return x
 }
 
-func (a Add) Eval(x float64) float64 {
+func (a add) Eval(x float64) float64 {
 	return a.Left.Eval(x) + a.Right.Eval(x)
 }
 
-func (s Subtract) Eval(x float64) float64 {
+func (s subtract) Eval(x float64) float64 {
 	return s.Left.Eval(x) - s.Right.Eval(x)
 }
 
-func (m Multiply) Eval(x float64) float64 {
+func (m multiply) Eval(x float64) float64 {
 	return m.Left.Eval(x) * m.Right.Eval(x)
 }
 
-func (d Divide) Eval(x float64) float64 {
+func (d divide) Eval(x float64) float64 {
 	return d.Left.Eval(x) / d.Right.Eval(x)
 }
 
-func (p Power) Eval(x float64) float64 {
+func (p power) Eval(x float64) float64 {
 	return math.Pow(p.Base.Eval(x), p.Exponent.Eval(x))
 }
 
-func (Number) isExpr() {}
+func (number) isExpr() {}
 
-func (Variable) isExpr() {}
+func (variable) isExpr() {}
 
-func (Add) isExpr() {}
+func (add) isExpr() {}
 
-func (Subtract) isExpr() {}
+func (subtract) isExpr() {}
 
-func (Multiply) isExpr() {}
+func (multiply) isExpr() {}
 
-func (Divide) isExpr() {}
+func (divide) isExpr() {}
 
-func (Power) isExpr() {}
+func (power) isExpr() {}

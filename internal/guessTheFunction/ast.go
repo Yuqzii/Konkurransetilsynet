@@ -50,7 +50,7 @@ func findFirstBinaryOperatorOfType(operators []int, tokens []Token) int {
 	return -1
 }
 
-func buildASTRecursive(tokens []Token) (Expr, error) {
+func buildASTRecursive(tokens []Token) (expr, error) {
 	if len(tokens) == 0 {
 		return nil, errors.New("no tokens to parse")
 	}
@@ -96,15 +96,15 @@ func buildASTRecursive(tokens []Token) (Expr, error) {
 
 			switch tokens[idx].Type {
 			case ADDITION_TOKEN:
-				return Add{Left: left, Right: right}, nil
+				return add{Left: left, Right: right}, nil
 			case SUBTRACTION_TOKEN:
-				return Subtract{Left: left, Right: right}, nil
+				return subtract{Left: left, Right: right}, nil
 			case MULTIPLICATION_TOKEN:
-				return Multiply{Left: left, Right: right}, nil
+				return multiply{Left: left, Right: right}, nil
 			case DIVISION_TOKEN:
-				return Divide{Left: left, Right: right}, nil
+				return divide{Left: left, Right: right}, nil
 			case POWER_TOKEN:
-				return Power{Base: left, Exponent: right}, nil
+				return power{Base: left, Exponent: right}, nil
 			default:
 				return nil, fmt.Errorf("unexpected token %v when building precedence tokens", tokens[idx])
 			}
@@ -117,8 +117,8 @@ func buildASTRecursive(tokens []Token) (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return Multiply{
-			Left:  Number{Value: -1},
+		return multiply{
+			Left:  number{Value: -1},
 			Right: right,
 		}, nil
 	}
@@ -131,9 +131,9 @@ func buildASTRecursive(tokens []Token) (Expr, error) {
 			if err != nil {
 				return nil, fmt.Errorf("invalid number %q", tokens[0].Value)
 			}
-			return Number{Value: val}, nil
+			return number{Value: val}, nil
 		case VARIABLE_TOKEN:
-			return Variable{}, nil
+			return variable{}, nil
 		default:
 			return nil, fmt.Errorf("unexpected token %v", tokens[0])
 		}
@@ -142,7 +142,7 @@ func buildASTRecursive(tokens []Token) (Expr, error) {
 	return nil, errors.New("could not parse tokens into AST")
 }
 
-func BuildAST(tokens []Token) (Expr, error) {
+func buildAST(tokens []Token) (expr, error) {
 	// Build AST
 	AST, astError := buildASTRecursive(tokens)
 	if astError != nil {

@@ -9,66 +9,66 @@ import (
 
 func Test_MarshalAndUnMarshal(t *testing.T) {
 	// Defined as code since loading is being tested
-	functionDefinitions := [...]Expr{
-		Add{
-			Variable{}, Number{Value: 10}},
+	functionDefinitions := [...]expr{
+		add{
+			variable{}, number{Value: 10}},
 
-		Add{
-			Variable{}, Number{Value: 1}},
+		add{
+			variable{}, number{Value: 1}},
 
-		Subtract{
-			Variable{}, Number{Value: 31}},
+		subtract{
+			variable{}, number{Value: 31}},
 
-		Subtract{
-			Variable{}, Number{Value: 9}},
+		subtract{
+			variable{}, number{Value: 9}},
 
-		Add{
-			Variable{}, Add{Number{Value: 13}, Number{Value: 3}}},
+		add{
+			variable{}, add{number{Value: 13}, number{Value: 3}}},
 
-		Add{
-			Number{Value: 12}, Subtract{Variable{}, Number{Value: 2}},
+		add{
+			number{Value: 12}, subtract{variable{}, number{Value: 2}},
 		},
 
-		Add{
-			Subtract{
-				Variable{},
-				Number{Value: 210},
+		add{
+			subtract{
+				variable{},
+				number{Value: 210},
 			},
-			Add{
-				Variable{},
-				Number{Value: 1},
+			add{
+				variable{},
+				number{Value: 1},
 			}},
 
-		Add{
-			Multiply{Number{Value: 3}, Variable{}},
-			Number{Value: 2},
+		add{
+			multiply{number{Value: 3}, variable{}},
+			number{Value: 2},
 		},
 
-		Subtract{
-			Multiply{Number{Value: 10}, Variable{}},
-			Number{Value: 9},
+		subtract{
+			multiply{number{Value: 10}, variable{}},
+			number{Value: 9},
 		},
 
-		Add{
-			Multiply{Number{Value: -10}, Variable{}},
-			Number{Value: 3},
+		add{
+			multiply{number{Value: -10}, variable{}},
+			number{Value: 3},
 		},
 
-		Add{
-			Multiply{Variable{}, Number{Value: -5}},
-			Number{Value: 10},
+		add{
+			multiply{variable{}, number{Value: -5}},
+			number{Value: 10},
 		},
 
-		Add{
-			Number{Value: -1},
-			Multiply{Number{Value: 7}, Variable{}},
+		add{
+			number{Value: -1},
+			multiply{number{Value: 7}, variable{}},
 		},
 
-		Number{Value: -1},
+		number{Value: -1},
 
-		Add{
-			Number{Value: 1},
-			Multiply{Number{Value: -1}, Variable{}},
+		add{
+			number{Value: 1},
+			multiply{number{Value: -1}, variable{}},
 		},
 	}
 
@@ -81,7 +81,7 @@ func Test_MarshalAndUnMarshal(t *testing.T) {
 			}
 
 			// Deserialize back
-			loadedExpr, err := UnmarshalExpr(jsonData)
+			loadedExpr, err := unmarshalExpr(jsonData)
 			if err != nil {
 				panic(err)
 			}

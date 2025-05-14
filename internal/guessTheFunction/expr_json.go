@@ -5,32 +5,32 @@ import (
 	"fmt"
 )
 
-type ExprWrapper struct {
+type exprWrapper struct {
 	Type     string          `json:"type"`
 	Value    json.RawMessage `json:"value,omitempty"`
-	Left     *ExprWrapper    `json:"left,omitempty"`
-	Right    *ExprWrapper    `json:"right,omitempty"`
-	Base     *ExprWrapper    `json:"base,omitempty"`
-	Exponent *ExprWrapper    `json:"exponent,omitempty"`
+	Left     *exprWrapper    `json:"left,omitempty"`
+	Right    *exprWrapper    `json:"right,omitempty"`
+	Base     *exprWrapper    `json:"base,omitempty"`
+	Exponent *exprWrapper    `json:"exponent,omitempty"`
 }
 
-func marshalExpr(expr Expr) (*ExprWrapper, error) {
+func marshalExpr(expr expr) (*exprWrapper, error) {
 	// Marshal based on type of expr
 	switch v := expr.(type) {
-	case Number:
+	case number:
 		data, err := json.Marshal(v)
 		if err != nil {
 			return nil, err
 		}
-		return &ExprWrapper{
+		return &exprWrapper{
 			Type:  "Number",
 			Value: data,
 		}, nil
-	case Variable:
-		return &ExprWrapper{
+	case variable:
+		return &exprWrapper{
 			Type: "Variable",
 		}, nil
-	case Add:
+	case add:
 		left, err := marshalExpr(v.Left)
 		if err != nil {
 			return nil, err
@@ -39,12 +39,12 @@ func marshalExpr(expr Expr) (*ExprWrapper, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ExprWrapper{
+		return &exprWrapper{
 			Type:  "Add",
 			Left:  left,
 			Right: right,
 		}, nil
-	case Subtract:
+	case subtract:
 		left, err := marshalExpr(v.Left)
 		if err != nil {
 			return nil, err
@@ -53,12 +53,12 @@ func marshalExpr(expr Expr) (*ExprWrapper, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ExprWrapper{
+		return &exprWrapper{
 			Type:  "Subtract",
 			Left:  left,
 			Right: right,
 		}, nil
-	case Multiply:
+	case multiply:
 		left, err := marshalExpr(v.Left)
 		if err != nil {
 			return nil, err
@@ -67,12 +67,12 @@ func marshalExpr(expr Expr) (*ExprWrapper, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ExprWrapper{
+		return &exprWrapper{
 			Type:  "Multiply",
 			Left:  left,
 			Right: right,
 		}, nil
-	case Divide:
+	case divide:
 		left, err := marshalExpr(v.Left)
 		if err != nil {
 			return nil, err
@@ -81,12 +81,12 @@ func marshalExpr(expr Expr) (*ExprWrapper, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ExprWrapper{
+		return &exprWrapper{
 			Type:  "Divide",
 			Left:  left,
 			Right: right,
 		}, nil
-	case Power:
+	case power:
 		base, err := marshalExpr(v.Base)
 		if err != nil {
 			return nil, err
@@ -95,7 +95,7 @@ func marshalExpr(expr Expr) (*ExprWrapper, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ExprWrapper{
+		return &exprWrapper{
 			Type:     "Power",
 			Base:     base,
 			Exponent: exponent,
@@ -105,7 +105,7 @@ func marshalExpr(expr Expr) (*ExprWrapper, error) {
 	}
 }
 
-func MarshalExpr(e Expr) ([]byte, error) {
+func MarshalExpr(e expr) ([]byte, error) {
 	wrapper, err := marshalExpr(e)
 	if err != nil {
 		return nil, err
@@ -113,78 +113,78 @@ func MarshalExpr(e Expr) ([]byte, error) {
 	return json.Marshal(wrapper)
 }
 
-func unmarshalExpr(wrapper *ExprWrapper) (Expr, error) {
+func unmarshalExprWrapper(wrapper *exprWrapper) (expr, error) {
 	// Marshal based on type of expr
 	switch wrapper.Type {
 	case "Number":
-		var num Number
+		var num number
 		err := json.Unmarshal(wrapper.Value, &num)
 		if err != nil {
 			return nil, err
 		}
 		return num, nil
 	case "Variable":
-		var variable Variable
+		var variable variable
 		return variable, nil
 	case "Add":
-		left, err := unmarshalExpr(wrapper.Left)
+		left, err := unmarshalExprWrapper(wrapper.Left)
 		if err != nil {
 			return nil, err
 		}
-		right, err := unmarshalExpr(wrapper.Right)
+		right, err := unmarshalExprWrapper(wrapper.Right)
 		if err != nil {
 			return nil, err
 		}
-		return Add{Left: left, Right: right}, nil
+		return add{Left: left, Right: right}, nil
 	case "Subtract":
-		left, err := unmarshalExpr(wrapper.Left)
+		left, err := unmarshalExprWrapper(wrapper.Left)
 		if err != nil {
 			return nil, err
 		}
-		right, err := unmarshalExpr(wrapper.Right)
+		right, err := unmarshalExprWrapper(wrapper.Right)
 		if err != nil {
 			return nil, err
 		}
-		return Subtract{Left: left, Right: right}, nil
+		return subtract{Left: left, Right: right}, nil
 	case "Multiply":
-		left, err := unmarshalExpr(wrapper.Left)
+		left, err := unmarshalExprWrapper(wrapper.Left)
 		if err != nil {
 			return nil, err
 		}
-		right, err := unmarshalExpr(wrapper.Right)
+		right, err := unmarshalExprWrapper(wrapper.Right)
 		if err != nil {
 			return nil, err
 		}
-		return Multiply{Left: left, Right: right}, nil
+		return multiply{Left: left, Right: right}, nil
 	case "Divide":
-		left, err := unmarshalExpr(wrapper.Left)
+		left, err := unmarshalExprWrapper(wrapper.Left)
 		if err != nil {
 			return nil, err
 		}
-		right, err := unmarshalExpr(wrapper.Right)
+		right, err := unmarshalExprWrapper(wrapper.Right)
 		if err != nil {
 			return nil, err
 		}
-		return Divide{Left: left, Right: right}, nil
+		return divide{Left: left, Right: right}, nil
 	case "Power":
-		base, err := unmarshalExpr(wrapper.Base)
+		base, err := unmarshalExprWrapper(wrapper.Base)
 		if err != nil {
 			return nil, err
 		}
-		exponent, err := unmarshalExpr(wrapper.Exponent)
+		exponent, err := unmarshalExprWrapper(wrapper.Exponent)
 		if err != nil {
 			return nil, err
 		}
-		return Power{Base: base, Exponent: exponent}, nil
+		return power{Base: base, Exponent: exponent}, nil
 	default:
 		return nil, fmt.Errorf("unknown type %q", wrapper.Type)
 	}
 }
 
-func UnmarshalExpr(data []byte) (Expr, error) {
-	var wrapper ExprWrapper
+func unmarshalExpr(data []byte) (expr, error) {
+	var wrapper exprWrapper
 	if err := json.Unmarshal(data, &wrapper); err != nil {
 		return nil, err
 	}
-	return unmarshalExpr(&wrapper)
+	return unmarshalExprWrapper(&wrapper)
 }

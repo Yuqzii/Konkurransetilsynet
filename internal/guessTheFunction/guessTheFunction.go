@@ -8,10 +8,9 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// Defined here so that it can be accessed outside the module
 type TestCase struct {
 	Input    string `json:"input"`
-	Expected Expr   `json:"expected"`
+	Expected expr   `json:"expected"`
 }
 
 func (tc *TestCase) MarshalJSON() ([]byte, error) {
@@ -39,7 +38,7 @@ func (tc *TestCase) UnmarshalJSON(data []byte) error {
 	}
 
 	tc.Input = jsonFormat.Input
-	expr, err := UnmarshalExpr(jsonFormat.Expected)
+	expr, err := unmarshalExpr(jsonFormat.Expected)
 	if err != nil {
 		return err
 	}
@@ -50,7 +49,7 @@ func (tc *TestCase) UnmarshalJSON(data []byte) error {
 func HandleGuessTheFunctionCommands(args []string, session *discordgo.Session, message *discordgo.MessageCreate) {
 	log.Println("received guessTheFunction command")
 	// TODO: this does not support spaces in function definition
-	function, parseError := MakeNewFunction(args[1])
+	function, parseError := makeNewFunction(args[1])
 	if parseError != nil {
 		log.Println("error parsing function: ", parseError)
 		return

@@ -53,7 +53,7 @@ func TestMakeNewFunction(t *testing.T) {
 
 	for index, testData := range functionDefinitions {
 		t.Run(testData.Input, func(t *testing.T) {
-			parsedFunction, err := MakeNewFunction(testData.Input)
+			parsedFunction, err := makeNewFunction(testData.Input)
 			if err != nil {
 				t.Fatal("unexpected error on function idx,", index, "error,", err)
 				return

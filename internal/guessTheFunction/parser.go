@@ -89,7 +89,7 @@ func lexFunctionDefinition(definition string) ([]Token, error) {
 	return tokens, nil
 }
 
-func TokenizeInput(input string) ([]Token, error) {
+func tokenizeInput(input string) ([]Token, error) {
 	// Sanitize
 	input = strings.ReplaceAll(input, " ", "")
 
