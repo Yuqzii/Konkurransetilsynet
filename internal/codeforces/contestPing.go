@@ -50,7 +50,7 @@ func checkContestPing(contests *contestList, session *discordgo.Session) error {
 		if shouldPing && !isPinged {
 			err := contestPing(contests, i, session)
 			if err != nil {
-				return errors.Join(errors.New("failed to ping contest:"), err)
+				return errors.Join(errors.New("failed to ping contest,"), err)
 			}
 		} else if !shouldPing {
 			// Contests are sorted, so no more contests should be pinged after the first that should
@@ -145,7 +145,7 @@ func getPingData(s *discordgo.Session, channelName string, roleName string) ([]p
 				Name: roleName,
 			})
 			if err != nil {
-				return nil, errors.Join(errors.New("failed to create ping role:"), err)
+				return nil, errors.Join(errors.New("failed to create ping role,"), err)
 			}
 
 			pingRole = newRole.ID
