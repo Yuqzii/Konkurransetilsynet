@@ -53,7 +53,8 @@ func checkContestPing(contests *contestList, session *discordgo.Session) error {
 				return errors.Join(errors.New("failed to ping contest,"), err)
 			}
 		} else if !shouldPing {
-			// Contests are sorted, so no more contests should be pinged after the first that should
+			// Contests are sorted, so no more contests should be pinged after
+			// the first that should not
 			break
 		}
 	}
@@ -70,8 +71,8 @@ func contestPing(contests *contestList, idx int, session *discordgo.Session) err
 
 	pingList.mu.RLock()
 	defer pingList.mu.RUnlock()
+	// Issue ping for every ping channel (essentially for every server)
 	for _, data := range pingList.list {
-		// TODO: Find role id belonging to each server and ping it
 		_, err := session.ChannelMessageSend(data.channel,
 			fmt.Sprintf("<@&%s> **%s** is starting <t:%d:R>",
 				data.role, contests.contests[idx].Name, contests.contests[idx].StartTimeSeconds))
@@ -90,9 +91,8 @@ func updatePingData(s *discordgo.Session) error {
 	}
 
 	pingList.mu.Lock()
-	defer pingList.mu.Unlock()
-
 	pingList.list = data
+	pingList.mu.Unlock()
 	return nil
 }
 
