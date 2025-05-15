@@ -84,7 +84,7 @@ func contestPing(contests *contestList, idx int, session *discordgo.Session) err
 }
 
 func updatePingData(s *discordgo.Session) error {
-	data, err := getPingData(s)
+	data, err := getPingData(s, "contest-pings", "Contest Ping")
 	if err != nil {
 		return err
 	}
@@ -96,10 +96,7 @@ func updatePingData(s *discordgo.Session) error {
 	return nil
 }
 
-func getPingData(s *discordgo.Session) ([]pingData, error) {
-	const channelName string = "contest-pings"
-	const roleName string = "Contest Ping"
-
+func getPingData(s *discordgo.Session, channelName string, roleName string) ([]pingData, error) {
 	var result []pingData
 
 	for _, guild := range s.State.Guilds {
@@ -127,7 +124,6 @@ func getPingData(s *discordgo.Session) ([]pingData, error) {
 				return nil, err
 			}
 
-			log.Println("Created ping channel,", newChannel.ID)
 			pingChannel = newChannel.ID
 		}
 
@@ -146,25 +142,17 @@ func getPingData(s *discordgo.Session) ([]pingData, error) {
 		// Create ping role if server does not have one
 		if pingRole == "" {
 			newRole, err := s.GuildRoleCreate(guild.ID, &discordgo.RoleParams{
-				Name:        roleName,
-				Mentionable: boolPointer(true),
+				Name: roleName,
 			})
 			if err != nil {
 				return nil, errors.Join(errors.New("failed to create ping role:"), err)
 			}
 
-			log.Println("Created ping role:", newRole.ID)
 			pingRole = newRole.ID
 		}
 
 		result = append(result, pingData{pingChannel, pingRole})
-		log.Println("Found ping channel,", pingChannel)
 	}
 
 	return result, nil
-}
-
-// GuildRoleCreate wants a *bool, which cannot be made easily without a helper function like this
-func boolPointer(b bool) *bool {
-	return &b
 }

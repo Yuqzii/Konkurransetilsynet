@@ -36,7 +36,7 @@ type contest struct {
 	Kind                  string `json:"kind,omitempty"`
 	Season                string `json:"season,omitempty"`
 	StartTimeSeconds      uint32 `json:"startTimeSeconds,omitempty"`
-	RelativeTimeSeconds   int32 `json:"relativeTimeSeconds,omitempty"`
+	RelativeTimeSeconds   int32  `json:"relativeTimeSeconds,omitempty"`
 	PreparedBy            string `json:"preparedBy,omitempty"`
 	Country               string `json:"country,omitempty"`
 	City                  string `json:"city,omitempty"`
