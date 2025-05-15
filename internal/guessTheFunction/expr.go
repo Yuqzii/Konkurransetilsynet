@@ -6,7 +6,6 @@ import (
 
 type expr interface {
 	Eval(x float64) float64
-	isExpr()
 }
 
 type number struct {
@@ -67,17 +66,3 @@ func (d divide) Eval(x float64) float64 {
 func (p power) Eval(x float64) float64 {
 	return math.Pow(p.Base.Eval(x), p.Exponent.Eval(x))
 }
-
-func (number) isExpr() {}
-
-func (variable) isExpr() {}
-
-func (add) isExpr() {}
-
-func (subtract) isExpr() {}
-
-func (multiply) isExpr() {}
-
-func (divide) isExpr() {}
-
-func (power) isExpr() {}

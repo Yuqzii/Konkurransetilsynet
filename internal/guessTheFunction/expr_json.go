@@ -114,7 +114,7 @@ func MarshalExpr(e expr) ([]byte, error) {
 }
 
 func unmarshalExprWrapper(wrapper *exprWrapper) (expr, error) {
-	// Marshal based on type of expr
+	// Unmarshal based on type of expr
 	switch wrapper.Type {
 	case "Number":
 		var num number

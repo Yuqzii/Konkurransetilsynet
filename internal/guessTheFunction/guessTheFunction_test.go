@@ -1,6 +1,7 @@
 package guessTheFunction
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -20,7 +21,7 @@ func logFunctionDefinition(fn expr, t *testing.T) {
 	}
 }
 
-func AssertFunctionsApproxEqual(parsedFunc expr, correctFunc expr, t *testing.T) {
+func assertFunctionsApproxEqual(parsedFunc expr, correctFunc expr, t *testing.T) {
 	for range numberSamplesPerFunctionTest {
 		// Sample in interval given
 		x := rand.Float64()*(xValuesUpperBound+math.Abs(xValuesLowerBound)) - xValuesLowerBound
@@ -42,7 +43,7 @@ func AssertFunctionsApproxEqual(parsedFunc expr, correctFunc expr, t *testing.T)
 	}
 }
 
-func TestMakeNewFunction(t *testing.T) {
+func Test_MakeNewFunction(t *testing.T) {
 	for i, tc := range TestCases_FunctionParsing {
 		t.Run(tc.Input, func(t *testing.T) {
 			parsedFunc, err := makeNewFunction(tc.Input)
@@ -51,7 +52,30 @@ func TestMakeNewFunction(t *testing.T) {
 				return
 			}
 
-			AssertFunctionsApproxEqual(parsedFunc, tc.Expected, t)
+			assertFunctionsApproxEqual(parsedFunc, tc.Expected, t)
+		})
+	}
+}
+
+func Test_MarshalAndUnMarshal(t *testing.T) {
+	for i, correctFunc := range TestCases_SavingLoading {
+		tName := fmt.Sprintf("function index: %d", i)
+		t.Run(tName, func(t *testing.T) {
+			// Serialize to JSON
+			jsonData, err := MarshalExpr(correctFunc)
+			if err != nil {
+				t.Fatalf("unexpected error on function index, %d error, %s", i, err)
+				return
+			}
+
+			// Deserialize back
+			parsedFunc, err := unmarshalExpr(jsonData)
+			if err != nil {
+				panic(err)
+			}
+
+			// Validate parsedFunc
+			assertFunctionsApproxEqual(parsedFunc, correctFunc, t)
 		})
 	}
 }
