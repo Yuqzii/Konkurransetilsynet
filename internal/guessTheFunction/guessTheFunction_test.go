@@ -1,97 +1,81 @@
 package guessTheFunction
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
 )
 
-type testData struct {
-	input  string
-	answer Function
-}
-
-const numberSamplesPerFunctionTest int = 100
+const xValuesLowerBound float64 = -1000
+const xValuesUpperBound float64 = 1000
+const numberSamplesPerFunctionTest uint16 = 100
 const maxTolerableError float64 = 1e-5
 
-func TestMakeNewFunction_Linear(t *testing.T) {
-	functionDefinitions := [...]testData{
-		{"x+10", Function{Add{
-			Variable{}, Number{Value: 10}}}},
-
-		{"x+1", Function{Add{
-			Variable{}, Number{Value: 1}}}},
-
-		{"x-31", Function{Subtract{
-			Variable{}, Number{Value: 31}}}},
-
-		{"x-9", Function{Subtract{
-			Variable{}, Number{Value: 9}}}},
-
-		{"x+13+3", Function{Add{
-			Variable{}, Add{Number{Value: 13}, Number{Value: 3}}}}},
-
-		{"12+x-2", Function{Add{
-			Number{Value: 12}, Subtract{Variable{}, Number{Value: 2}},
-		}}},
-
-		{"x-210+x+1", Function{Subtract{
-			Variable{},
-			Add{
-				Number{Value: 210},
-				Add{Variable{}, Number{Value: 1}},
-			},
-		}}},
-
-		{"3*x+2", Function{Add{
-			Multiply{Number{Value: 3}, Variable{}},
-			Number{Value: 2},
-		}}},
-
-		{"10*x-9", Function{Subtract{
-			Multiply{Number{Value: 10}, Variable{}},
-			Number{Value: 9},
-		}}},
-
-		{"-10*x+3", Function{Add{
-			Multiply{Number{Value: -10}, Variable{}},
-			Number{Value: 3},
-		}}},
-
-		{"x*-5+10", Function{Add{
-			Multiply{Variable{}, Number{Value: -5}},
-			Number{Value: 10},
-		}}},
-
-		{"-1+7*x", Function{Add{
-			Number{Value: -1},
-			Multiply{Number{Value: 7}, Variable{}},
-		}}},
-
-		{"-1", Function{Number{Value: -1}}},
-
-		{"1+-x", Function{Add{
-			Number{Value: 1},
-			Multiply{Number{Value: -1}, Variable{}},
-		}}},
+func logFunctionDefinition(fn expr, t *testing.T) {
+	data, err := MarshalExpr(fn)
+	if err != nil {
+		t.Logf("unpacking error %s", err)
+	} else {
+		t.Logf("function: %s", string(data))
 	}
+}
 
-	for index, testData := range functionDefinitions {
-		parsedFunction, err := MakeNewFunction(testData.input)
-		if err != nil {
-			t.Log("unexpected error on function idx,", index, "error,", err)
+func assertFunctionsApproxEqual(parsedFunc expr, correctFunc expr, t *testing.T) {
+	for range numberSamplesPerFunctionTest {
+		// Sample in interval given
+		x := rand.Float64()*(xValuesUpperBound+math.Abs(xValuesLowerBound)) - xValuesLowerBound
+
+		y_correct := correctFunc.Eval(x)
+		y_parsed := parsedFunc.Eval(x)
+
+		// Find relative difference
+		absolute_difference := math.Abs(y_parsed - y_correct)
+		y_average := (y_parsed + y_correct) / 2.0
+		relative_difference := absolute_difference / y_average
+
+		if relative_difference > maxTolerableError {
+			logFunctionDefinition(parsedFunc, t)
+			logFunctionDefinition(correctFunc, t)
+
+			t.Fatalf("functions did not produce same value, x: %f y: %f y_pred: %f", x, correctFunc.Eval(x), parsedFunc.Eval(x))
 		}
+	}
+}
 
-		expectedFunction := testData.answer
-
-		for i := 0; i < numberSamplesPerFunctionTest; i++ {
-			x := rand.Float64() * 100
-			difference := math.Abs(parsedFunction.Eval(x) - expectedFunction.Eval(x))
-
-			if difference > maxTolerableError {
-				t.Log("failed on test idx", index, "function,", testData.input)
+func Test_MakeNewFunction(t *testing.T) {
+	for i, tc := range TestCases_FunctionParsing {
+		t.Run(tc.Input, func(t *testing.T) {
+			parsedFunc, err := makeNewFunction(tc.Input)
+			if err != nil {
+				t.Fatalf("unexpected error on function index, %d error, %s", i, err)
+				return
 			}
-		}
 
+			assertFunctionsApproxEqual(parsedFunc, tc.Expected, t)
+		})
+	}
+}
+
+func Test_MarshalAndUnMarshal(t *testing.T) {
+	for i, correctFunc := range TestCases_SavingLoading {
+		tName := fmt.Sprintf("function index: %d", i)
+		t.Run(tName, func(t *testing.T) {
+			// Serialize to JSON
+			jsonData, err := MarshalExpr(correctFunc)
+			if err != nil {
+				t.Fatalf("unexpected error on function index, %d error, %s", i, err)
+				return
+			}
+
+			// Deserialize back
+			parsedFunc, err := unmarshalExpr(jsonData)
+			if err != nil {
+				panic(err)
+			}
+
+			// Validate parsedFunc
+			assertFunctionsApproxEqual(parsedFunc, correctFunc, t)
+		})
 	}
 }

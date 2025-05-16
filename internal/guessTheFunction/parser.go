@@ -3,8 +3,6 @@ package guessTheFunction
 import (
 	"errors"
 	"fmt"
-	"log"
-	"strconv"
 	"strings"
 	"unicode"
 )
@@ -17,109 +15,89 @@ const (
 	MULTIPLICATION_TOKEN
 	DIVISION_TOKEN
 	POWER_TOKEN
+	LEFT_PAREN_TOKEN
+	RIGHT_PAREN_TOKEN
 )
 
-type token struct {
+type Token struct {
 	Type  int
 	Value string
 }
 
-func lexFunctionDefinition(definition string) ([]token, error) {
-	var tokens []token
+func lexFunctionDefinition(definition string) ([]Token, error) {
+	var tokens []Token
 	i := 0
 	for i < len(definition) {
 		ch := definition[i]
 
-		if unicode.IsDigit(rune(ch)) {
+		// Numbers (supporting decimals)
+		if unicode.IsDigit(rune(ch)) || ch == '.' {
 			start := i
-			// Find all consecutive number tokens
-			for i < len(definition) && unicode.IsDigit(rune(definition[i])) {
-				i++
+			dotSeen := ch == '.'
+			i++
+
+			for i < len(definition) {
+				if unicode.IsDigit(rune(definition[i])) {
+					i++
+				} else if definition[i] == '.' {
+					if dotSeen {
+						return nil, fmt.Errorf("multiple dots in number at position %d", i)
+					}
+					dotSeen = true
+					i++
+				} else {
+					break
+				}
 			}
-			tokens = append(tokens, token{Type: NUMBER_TOKEN, Value: definition[start:i]})
-		} else {
-			switch ch {
-			case 'x':
-				tokens = append(tokens, token{Type: VARIABLE_TOKEN, Value: "x"})
-			case '+':
-				tokens = append(tokens, token{Type: ADDITION_TOKEN, Value: "+"})
-			case '-':
-				tokens = append(tokens, token{Type: SUBTRACTION_TOKEN, Value: "-"})
-			case '*':
-				tokens = append(tokens, token{Type: MULTIPLICATION_TOKEN, Value: "*"})
-			case '/':
-				tokens = append(tokens, token{Type: DIVISION_TOKEN, Value: "/"})
-			case '^':
-				tokens = append(tokens, token{Type: POWER_TOKEN, Value: "^"})
-			default:
-				return nil, fmt.Errorf("unexpected char, %c in function definition, %s", ch, definition)
+
+			if start == i-1 && definition[start] == '.' {
+				return nil, fmt.Errorf("invalid standalone dot at position %d", start)
 			}
+
+			tokens = append(tokens, Token{Type: NUMBER_TOKEN, Value: definition[start:i]})
+			continue
+		}
+
+		// Variables
+		if ch == 'x' {
+			tokens = append(tokens, Token{Type: VARIABLE_TOKEN, Value: "x"})
+			i++
+			continue
+		}
+
+		// Operators and parentheses
+		switch ch {
+		case '+':
+			tokens = append(tokens, Token{Type: ADDITION_TOKEN, Value: "+"})
+		case '-':
+			tokens = append(tokens, Token{Type: SUBTRACTION_TOKEN, Value: "-"})
+		case '*':
+			tokens = append(tokens, Token{Type: MULTIPLICATION_TOKEN, Value: "*"})
+		case '/':
+			tokens = append(tokens, Token{Type: DIVISION_TOKEN, Value: "/"})
+		case '^':
+			tokens = append(tokens, Token{Type: POWER_TOKEN, Value: "^"})
+		case '(':
+			tokens = append(tokens, Token{Type: LEFT_PAREN_TOKEN, Value: "("})
+		case ')':
+			tokens = append(tokens, Token{Type: RIGHT_PAREN_TOKEN, Value: ")"})
+		default:
+			return nil, fmt.Errorf("unexpected character '%c' in input at position %d", ch, i)
 		}
 		i++
 	}
 	return tokens, nil
 }
 
-func generateAST(tokens []token) (Expr, error) {
-	// Generate base case for array of length 1
-	if len(tokens) == 1 {
-		token := tokens[0]
-
-		switch token.Type {
-		case VARIABLE_TOKEN:
-			return Variable{}, nil
-		case NUMBER_TOKEN:
-			value, parsErr := strconv.ParseFloat(token.Value, 64)
-			if parsErr != nil {
-				return nil, fmt.Errorf("unable to parse float, %s", token.Value)
-			}
-			return Number{Value: value}, nil
-		default:
-			return nil, fmt.Errorf("unsupported token type in AST generation, %d", token.Type)
-		}
-	}
-
-	i := 0
-	for i < len(tokens) {
-		currentToken := tokens[i]
-
-		// Handle addition token, splits token array recursively
-		if currentToken.Type == ADDITION_TOKEN && i > 0 && i < len(tokens)-1 {
-			left, errLeft := generateAST(tokens[:i])
-			if errLeft != nil {
-				return nil, errors.New("unable to parse left in addition AST, good luck")
-			}
-
-			right, errRight := generateAST(tokens[i+1:])
-			if errRight != nil {
-				return nil, errors.New("unable to parse right in addition AST, good luck")
-			}
-
-			AST := Add{Left: left, Right: right}
-			return AST, nil
-		}
-		i++
-	}
-	return nil, errors.New("unable to generate AST, good luck")
-}
-
-func ParseFunction(input string) (Expr, error) {
+func tokenizeInput(input string) ([]Token, error) {
 	// Sanitize
 	input = strings.ReplaceAll(input, " ", "")
 
 	// Find tokens
 	tokens, lexError := lexFunctionDefinition(input)
 	if lexError != nil {
-		log.Println("error running lexical analysis on input, ", input, ", error,", lexError)
 		return nil, errors.New("error running lexical analysis on input")
 	}
 
-	// Generate AST
-	AST, astError := generateAST(tokens)
-	if astError != nil {
-		log.Println("error generating AST from tokens, ", tokens, ", error,", astError)
-		return nil, errors.New("error generating AST from tokens")
-	}
-
-	return AST, nil
+	return tokens, nil
 }
