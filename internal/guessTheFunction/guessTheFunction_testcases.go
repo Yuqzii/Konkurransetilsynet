@@ -107,7 +107,7 @@ var TestCases_FunctionParsing = []TestCase{
 	// shortens to 3x^2 + 5x - 6
 	{"((x*(2+1))*(x+0))+((10-5)*x)+((3-10)+((2*1)-1))", add{
 		add{
-			multiply{number{3}, power{Base: variable{}, Exponent: number{2}}},
+			multiply{number{3}, power{Left: variable{}, Right: number{2}}},
 			multiply{number{5}, variable{}},
 		},
 		number{-6},
@@ -124,15 +124,15 @@ var TestCases_FunctionParsing = []TestCase{
 					},
 					multiply{
 						number{-19},
-						power{Base: variable{}, Exponent: number{2}},
+						power{Left: variable{}, Right: number{2}},
 					},
 				},
 				multiply{
 					number{9},
-					power{Base: variable{}, Exponent: number{3}},
+					power{Left: variable{}, Right: number{3}},
 				},
 			},
-			power{Base: variable{}, Exponent: number{4}},
+			power{Left: variable{}, Right: number{4}},
 		},
 		add{
 			add{
@@ -141,7 +141,7 @@ var TestCases_FunctionParsing = []TestCase{
 			},
 			multiply{
 				number{5},
-				power{Base: variable{}, Exponent: number{2}},
+				power{Left: variable{}, Right: number{2}},
 			},
 		},
 	}},
