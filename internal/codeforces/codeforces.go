@@ -72,29 +72,13 @@ func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.
 
 		err := listContests(&upcoming, s, m)
 		if err != nil {
-			return errors.Join(errors.New("listing future contests failed"), err)
+			return errors.Join(errors.New("listing future contests failed,"), err)
 		}
 	case "addDebugContest":
-		if len(args) != 5 {
-			err := messageCommands.UnknownCommand(s, m)
-			return err
-		}
-
-		startTime64, err := strconv.ParseUint(args[3], 10, 32)
+		err := addDebugContestCommand(args, s, m)
 		if err != nil {
-			err = errors.Join(err, messageCommands.UnknownCommand(s, m))
-			return err
+			return errors.Join(errors.New("adding debug contest failed,"), err)
 		}
-		startTime := uint32(startTime64)
-
-		id64, err := strconv.ParseUint(args[4], 10, 32)
-		if err != nil {
-			err = errors.Join(err, messageCommands.UnknownCommand(s, m))
-			return err
-		}
-		id := uint32(id64)
-
-		addContest(&upcoming, id, args[2], startTime)
 	default:
 		err := messageCommands.UnknownCommand(s, m)
 		return err
@@ -114,6 +98,30 @@ func startContestUpdate(listToUpdate *contestList, interval time.Duration) {
 			}
 		}
 	}()
+}
+
+func addDebugContestCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
+	if len(args) != 5 {
+		err := messageCommands.UnknownCommand(s, m)
+		return err
+	}
+
+	startTime64, err := strconv.ParseUint(args[3], 10, 32)
+	if err != nil {
+		err = errors.Join(err, messageCommands.UnknownCommand(s, m))
+		return err
+	}
+	startTime := uint32(startTime64)
+
+	id64, err := strconv.ParseUint(args[4], 10, 32)
+	if err != nil {
+		err = errors.Join(err, messageCommands.UnknownCommand(s, m))
+		return err
+	}
+	id := uint32(id64)
+
+	addContest(&upcoming, id, args[2], startTime)
+	return nil
 }
 
 func addContest(contests *contestList, id uint32, name string, startTime uint32) {
