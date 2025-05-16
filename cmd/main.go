@@ -9,10 +9,9 @@ import (
 	"syscall"
 	"unicode/utf8"
 
-	"github.com/yuqzii/konkurransetilsynet/internal"
-	"github.com/yuqzii/konkurransetilsynet/internal/codeforces"
-	"github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
-	utilcommands "github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
+	codeforces "github.com/yuqzii/konkurransetilsynet/internal/codeforces"
+	guessTheFunction "github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
+	utilCommands "github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -76,7 +75,7 @@ func main() {
 
 		switch command {
 		case "hello":
-			err := messageCommands.Hello(session, message)
+			err := utilCommands.Hello(session, message)
 			if err != nil {
 				log.Fatal("Hello command failed to execute, ", err)
 			}
@@ -91,13 +90,13 @@ func main() {
 			guessTheFunction.HandleGuessTheFunctionCommands(args, session, message)
 
 		case "utils":
-			err := utilcommands.HandleUtilCommands(args, session, message)
+			err := utilCommands.HandleUtilCommands(args, session, message)
 			if err != nil {
 				log.Println("Utility command failed:", err)
 			}
 
 		default:
-			err := messageCommands.UnknownCommand(session, message)
+			err := utilCommands.UnknownCommand(session, message)
 			if err != nil {
 				log.Println("Unknown command failed to execute, ", err)
 			}
