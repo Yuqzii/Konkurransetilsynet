@@ -100,22 +100,9 @@ func getPingData(s *discordgo.Session, channelName string, roleName string) ([]p
 	var result []pingData
 
 	for _, guild := range s.State.Guilds {
-		channels, err := s.GuildChannels(guild.ID)
+		pingChannel, err := getChannelIDByName(channelName, guild.ID, s)
 		if err != nil {
-			return nil, err
-		}
-		pingChannel := ""
-		// Try to find a channel with the name
-		for _, channel := range channels {
-			// Skip non-text channels
-			if channel.Type != discordgo.ChannelTypeGuildText {
-				continue
-			}
-
-			if channel.Name == channelName {
-				pingChannel = channel.ID
-				break
-			}
+			return nil, errors.Join(errors.New("getting channel ID failed,"), err)
 		}
 		// Create ping channel if server does not have one
 		if pingChannel == "" {
@@ -127,17 +114,9 @@ func getPingData(s *discordgo.Session, channelName string, roleName string) ([]p
 			pingChannel = newChannel.ID
 		}
 
-		roles, err := s.GuildRoles(guild.ID)
+		pingRole, err := getRoleIDByName(roleName, guild.ID, s)
 		if err != nil {
-			return nil, err
-		}
-		pingRole := ""
-		// Try to find role with correct name
-		for _, role := range roles {
-			if role.Name == roleName {
-				pingRole = role.ID
-				break
-			}
+			return nil, errors.Join(errors.New("getting role ID failed,"), err)
 		}
 		// Create ping role if server does not have one
 		if pingRole == "" {
@@ -155,4 +134,43 @@ func getPingData(s *discordgo.Session, channelName string, roleName string) ([]p
 	}
 
 	return result, nil
+}
+
+// @return	ID of the channel as a string, empty ("") if there is no channel with the provided name.
+func getChannelIDByName(name string, guildID string, s *discordgo.Session) (string, error) {
+	channels, err := s.GuildChannels(guildID)
+	if err != nil {
+		return "", err
+	}
+
+	// Try to find a channel with the name
+	for _, channel := range channels {
+		// Skip non-text channels
+		if channel.Type != discordgo.ChannelTypeGuildText {
+			continue
+		}
+
+		if channel.Name == name {
+			return channel.ID, nil
+		}
+	}
+	
+	return "", nil
+}
+
+// @return	ID of the role as a string, empty ("") if there is no role with the provided name.
+func getRoleIDByName(name string, guildID string, s *discordgo.Session) (string, error) {
+	roles, err := s.GuildRoles(guildID)
+	if err != nil {
+		return "", err
+	}
+
+	// Try to find role with correct name
+	for _, role := range roles {
+		if role.Name == name {
+			return role.ID, nil
+		}
+	}
+
+	return "", nil
 }
