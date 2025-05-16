@@ -154,7 +154,7 @@ func getChannelIDByName(name string, guildID string, s *discordgo.Session) (stri
 			return channel.ID, nil
 		}
 	}
-	
+
 	return "", nil
 }
 
