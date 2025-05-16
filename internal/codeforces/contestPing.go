@@ -1,6 +1,7 @@
 package codeforces
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -9,62 +10,72 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+type pingData struct {
+	channel string
+	role    string
+}
+
 // !! Lock mutex when accessing
-type pingChannelIDs struct {
-	list []string
+type pingDataList struct {
+	list []pingData
 	mu   sync.RWMutex
 }
 
-var pingChannels = pingChannelIDs{}
+var pingList = pingDataList{}
+var pingedIDs = make(map[uint32]struct{}) // Set for pinged contests
 
-const pingTime int = 1 * 3600 // 1 hour
+const pingTime uint32 = 1 * 3600 // 1 hour
 
 // Start goroutine that checks whether it should issue a ping for upcoming contests
 func startContestPingCheck(contests *contestList, interval time.Duration, session *discordgo.Session) {
 	go func() {
 		for {
 			time.Sleep(interval)
-			checkContestPing(contests, session)
-		}
-	}()
-}
-
-func checkContestPing(contests *contestList, session *discordgo.Session) {
-	contests.mu.RLock()
-	defer contests.mu.RUnlock()
-
-	curTime := int(time.Now().Unix())
-	for i, contest := range contests.contests {
-		shouldPing := contest.StartTimeSeconds-curTime <= pingTime
-		if shouldPing && !contest.Pinged {
-			// Unlock reading to allow contestPing to write
-			contests.mu.RUnlock()
-
-			log.Println("Pinging contest", contest.Name)
-			err := contestPing(contests, i, session)
+			err := checkContestPing(contests, session)
 			if err != nil {
 				log.Println("Automatic contest ping failed:", err)
 			}
 		}
-		// Lock again to ensure safe access on next iteration
-		contests.mu.RLock()
+	}()
+}
+
+func checkContestPing(contests *contestList, session *discordgo.Session) error {
+	contests.mu.RLock()
+	defer contests.mu.RUnlock()
+
+	curTime := uint32(time.Now().Unix())
+	for i, contest := range contests.contests {
+		shouldPing := contest.StartTimeSeconds-curTime <= pingTime
+		_, isPinged := pingedIDs[contest.ID]
+		if shouldPing && !isPinged {
+			err := contestPing(contests, i, session)
+			if err != nil {
+				return errors.Join(errors.New("failed to ping contest,"), err)
+			}
+		} else if !shouldPing {
+			// Contests are sorted, so no more contests should be pinged after
+			// the first that should not
+			break
+		}
 	}
+
+	return nil
 }
 
 func contestPing(contests *contestList, idx int, session *discordgo.Session) error {
-	contests.mu.Lock()
-	contests.contests[idx].Pinged = true
-	contests.mu.Unlock()
-
 	contests.mu.RLock()
 	defer contests.mu.RUnlock()
-	pingChannels.mu.RLock()
-	defer pingChannels.mu.RUnlock()
-	for _, channel := range pingChannels.list {
-		// TODO: Find role id belonging to each server and ping it
-		_, err := session.ChannelMessageSend(channel,
-			fmt.Sprint("@<role> ", contests.contests[idx].Name,
-				fmt.Sprintf(" is starting <t:%d:R>", contests.contests[idx].StartTimeSeconds)))
+
+	// Add contest ID to set
+	pingedIDs[contests.contests[idx].ID] = struct{}{}
+
+	pingList.mu.RLock()
+	defer pingList.mu.RUnlock()
+	// Issue ping for every ping channel (essentially for every server)
+	for _, data := range pingList.list {
+		_, err := session.ChannelMessageSend(data.channel,
+			fmt.Sprintf("<@&%s> **%s** is starting <t:%d:R>",
+				data.role, contests.contests[idx].Name, contests.contests[idx].StartTimeSeconds))
 		if err != nil {
 			return err
 		}
@@ -73,57 +84,93 @@ func contestPing(contests *contestList, idx int, session *discordgo.Session) err
 	return nil
 }
 
-func updatePingChannels(s *discordgo.Session) error {
-	ids, err := getPingChannels(s)
+func updatePingData(s *discordgo.Session) error {
+	data, err := getPingData(s, "contest-pings", "Contest Ping")
 	if err != nil {
 		return err
 	}
 
-	pingChannels.mu.Lock()
-	defer pingChannels.mu.Unlock()
-
-	pingChannels.list = ids
+	pingList.mu.Lock()
+	pingList.list = data
+	pingList.mu.Unlock()
 	return nil
 }
 
-func getPingChannels(s *discordgo.Session) ([]string, error) {
-	const channelName string = "contest-pings"
-
-	var result []string
+func getPingData(s *discordgo.Session, channelName string, roleName string) ([]pingData, error) {
+	var result []pingData
 
 	for _, guild := range s.State.Guilds {
-		channels, err := s.GuildChannels(guild.ID)
+		pingChannel, err := getChannelIDByName(channelName, guild.ID, s)
 		if err != nil {
-			return nil, err
+			return nil, errors.Join(errors.New("getting channel ID failed,"), err)
 		}
-
-		pingChannel := ""
-		for _, channel := range channels {
-			// Skip non-text channels
-			if channel.Type != discordgo.ChannelTypeGuildText {
-				continue
-			}
-
-			if channel.Name == channelName {
-				pingChannel = channel.ID
-				break
-			}
-		}
-
+		// Create ping channel if server does not have one
 		if pingChannel == "" {
-			// The server does not have a ping channel
 			newChannel, err := s.GuildChannelCreate(guild.ID, channelName, discordgo.ChannelTypeGuildText)
 			if err != nil {
 				return nil, err
 			}
 
-			log.Println("Created ping channel,", newChannel.ID)
 			pingChannel = newChannel.ID
 		}
 
-		result = append(result, pingChannel)
-		log.Println("Found ping channel,", pingChannel)
+		pingRole, err := getRoleIDByName(roleName, guild.ID, s)
+		if err != nil {
+			return nil, errors.Join(errors.New("getting role ID failed,"), err)
+		}
+		// Create ping role if server does not have one
+		if pingRole == "" {
+			newRole, err := s.GuildRoleCreate(guild.ID, &discordgo.RoleParams{
+				Name: roleName,
+			})
+			if err != nil {
+				return nil, errors.Join(errors.New("failed to create ping role,"), err)
+			}
+
+			pingRole = newRole.ID
+		}
+
+		result = append(result, pingData{pingChannel, pingRole})
 	}
 
 	return result, nil
+}
+
+// @return	ID of the channel as a string, empty ("") if there is no channel with the provided name.
+func getChannelIDByName(name string, guildID string, s *discordgo.Session) (string, error) {
+	channels, err := s.GuildChannels(guildID)
+	if err != nil {
+		return "", err
+	}
+
+	// Try to find a channel with the name
+	for _, channel := range channels {
+		// Skip non-text channels
+		if channel.Type != discordgo.ChannelTypeGuildText {
+			continue
+		}
+
+		if channel.Name == name {
+			return channel.ID, nil
+		}
+	}
+
+	return "", nil
+}
+
+// @return	ID of the role as a string, empty ("") if there is no role with the provided name.
+func getRoleIDByName(name string, guildID string, s *discordgo.Session) (string, error) {
+	roles, err := s.GuildRoles(guildID)
+	if err != nil {
+		return "", err
+	}
+
+	// Try to find role with correct name
+	for _, role := range roles {
+		if role.Name == name {
+			return role.ID, nil
+		}
+	}
+
+	return "", nil
 }
