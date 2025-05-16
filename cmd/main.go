@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -8,9 +9,9 @@ import (
 	"syscall"
 	"unicode/utf8"
 
-	"github.com/yuqzii/konkurransetilsynet/internal"
-	"github.com/yuqzii/konkurransetilsynet/internal/codeforces"
-	"github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
+	codeforces "github.com/yuqzii/konkurransetilsynet/internal/codeforces"
+	guessTheFunction "github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
+	utilCommands "github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -18,6 +19,19 @@ import (
 const prefix string = "!"
 
 func main() {
+	// Write to both stderr and log file
+	logFile, err := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		log.Panic(err)
+	}
+	defer func() {
+		if err := logFile.Close(); err != nil {
+			log.Panic(err)
+		}
+	}()
+	mw := io.MultiWriter(os.Stderr, logFile)
+	log.SetOutput(mw)
+
 	token := os.Getenv("TOKEN")
 	session, err := discordgo.New("Bot " + token)
 	if err != nil {
@@ -61,7 +75,7 @@ func main() {
 
 		switch command {
 		case "hello":
-			err := messageCommands.Hello(session, message)
+			err := utilCommands.Hello(session, message)
 			if err != nil {
 				log.Fatal("Hello command failed to execute, ", err)
 			}
@@ -75,8 +89,14 @@ func main() {
 		case "guessTheFunction":
 			guessTheFunction.HandleGuessTheFunctionCommands(args, session, message)
 
+		case "utils":
+			err := utilCommands.HandleUtilCommands(args, session, message)
+			if err != nil {
+				log.Println("Utility command failed:", err)
+			}
+
 		default:
-			err := messageCommands.UnknownCommand(session, message)
+			err := utilCommands.UnknownCommand(session, message)
 			if err != nil {
 				log.Println("Unknown command failed to execute, ", err)
 			}

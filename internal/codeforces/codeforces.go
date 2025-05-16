@@ -13,8 +13,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-
-	"github.com/yuqzii/konkurransetilsynet/internal"
+	utilCommands "github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
 )
 
 // The return object from the Codeforces API
@@ -80,7 +79,7 @@ func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.
 			return errors.Join(errors.New("adding debug contest failed,"), err)
 		}
 	default:
-		err := messageCommands.UnknownCommand(s, m)
+		err := utilCommands.UnknownCommand(s, m)
 		return err
 	}
 
@@ -102,20 +101,20 @@ func startContestUpdate(listToUpdate *contestList, interval time.Duration) {
 
 func addDebugContestCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
 	if len(args) != 5 {
-		err := messageCommands.UnknownCommand(s, m)
+		err := utilCommands.UnknownCommand(s, m)
 		return err
 	}
 
 	startTime64, err := strconv.ParseUint(args[3], 10, 32)
 	if err != nil {
-		err = errors.Join(err, messageCommands.UnknownCommand(s, m))
+		err = errors.Join(err, utilCommands.UnknownCommand(s, m))
 		return err
 	}
 	startTime := uint32(startTime64)
 
 	id64, err := strconv.ParseUint(args[4], 10, 32)
 	if err != nil {
-		err = errors.Join(err, messageCommands.UnknownCommand(s, m))
+		err = errors.Join(err, utilCommands.UnknownCommand(s, m))
 		return err
 	}
 	id := uint32(id64)
