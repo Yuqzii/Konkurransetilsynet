@@ -2,5 +2,6 @@ services:
   main:
     build: ./
     container_name: konkurransetilsynet
+    restart: unless-stopped
     environment:
       - TOKEN=${TOKEN}
