@@ -7,7 +7,7 @@ import (
 )
 
 // Order of precedence, lowest to highest
-var precedenceTokenTypes = [][]TokenType{
+var precedenceTokenTypes = [3][]TokenType{
 	{ADDITION_TOKEN, SUBTRACTION_TOKEN},
 	{MULTIPLICATION_TOKEN, DIVISION_TOKEN},
 	{POWER_TOKEN},
@@ -52,15 +52,15 @@ func findFirstBinaryOperatorOfType(operators []TokenType, tokens []Token) (int, 
 		}
 
 		for _, operator := range operators {
-			// Skip non operators
+			// Skip non-operators and operators not currently searched for
 			if tokens[i].Type != operator {
 				continue
 			}
 
-			// If subtraction, make sure it's binary
+			// Ensure subtraction is binary. Ex: 2-x valid, -(x+3) invalid
 			if operator == SUBTRACTION_TOKEN {
 				if i == 0 {
-					continue // can't be binary at pos 0
+					continue // Can't be binary at pos 0
 				}
 
 				if !canPrecedeBinaryOperator(tokens[i-1]) {
