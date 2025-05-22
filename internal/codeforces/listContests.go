@@ -18,20 +18,19 @@ func listContests(contests *contestList, s *discordgo.Session, m *discordgo.Mess
 	// Add embed for each contest
 	contests.mu.RLock()
 	for _, contest := range contests.contests {
-		if contest.Phase == "BEFORE" {
-			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
-				Name:   contest.Name,
-				Value:  fmt.Sprintf("Starts <t:%d:R>", contest.StartTimeSeconds),
-				Inline: true,
-			})
-		} else {
-			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
-				Name: contest.Name,
-				Value: fmt.Sprintf("In progress, ends <t:%d:R>",
-					contest.StartTimeSeconds+contest.DurationSeconds),
-				Inline: true,
-			})
+		f := &discordgo.MessageEmbedField{
+			Name:   contest.Name,
+			Inline: false,
 		}
+
+		if contest.Phase == "BEFORE" {
+			f.Value = fmt.Sprintf("Starts <t:%d:R>", contest.StartTimeSeconds)
+		} else {
+			f.Value = fmt.Sprintf("In progress, ends <t:%d:R>",
+				contest.StartTimeSeconds+contest.DurationSeconds)
+		}
+
+		embed.Fields = append(embed.Fields, f)
 	}
 	contests.mu.RUnlock()
 
