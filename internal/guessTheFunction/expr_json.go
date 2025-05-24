@@ -6,12 +6,10 @@ import (
 )
 
 type exprWrapper struct {
-	Type     string          `json:"type"`
-	Value    json.RawMessage `json:"value,omitempty"`
-	Left     *exprWrapper    `json:"left,omitempty"`
-	Right    *exprWrapper    `json:"right,omitempty"`
-	Base     *exprWrapper    `json:"base,omitempty"`
-	Exponent *exprWrapper    `json:"exponent,omitempty"`
+	Type  string          `json:"type"`
+	Value json.RawMessage `json:"value,omitempty"`
+	Left  *exprWrapper    `json:"left,omitempty"`
+	Right *exprWrapper    `json:"right,omitempty"`
 }
 
 func marshalExpr(expr expr) (*exprWrapper, error) {
@@ -87,18 +85,18 @@ func marshalExpr(expr expr) (*exprWrapper, error) {
 			Right: right,
 		}, nil
 	case power:
-		base, err := marshalExpr(v.Base)
+		left, err := marshalExpr(v.Left)
 		if err != nil {
 			return nil, err
 		}
-		exponent, err := marshalExpr(v.Exponent)
+		right, err := marshalExpr(v.Right)
 		if err != nil {
 			return nil, err
 		}
 		return &exprWrapper{
-			Type:     "Power",
-			Base:     base,
-			Exponent: exponent,
+			Type:  "Power",
+			Left:  left,
+			Right: right,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown expr type")
@@ -167,15 +165,15 @@ func unmarshalExprWrapper(wrapper *exprWrapper) (expr, error) {
 		}
 		return divide{Left: left, Right: right}, nil
 	case "Power":
-		base, err := unmarshalExprWrapper(wrapper.Base)
+		left, err := unmarshalExprWrapper(wrapper.Left)
 		if err != nil {
 			return nil, err
 		}
-		exponent, err := unmarshalExprWrapper(wrapper.Exponent)
+		right, err := unmarshalExprWrapper(wrapper.Right)
 		if err != nil {
 			return nil, err
 		}
-		return power{Base: base, Exponent: exponent}, nil
+		return power{Left: left, Right: right}, nil
 	default:
 		return nil, fmt.Errorf("unknown type %q", wrapper.Type)
 	}
