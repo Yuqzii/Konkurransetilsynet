@@ -35,8 +35,8 @@ type divide struct {
 }
 
 type power struct {
-	Base     expr `json:"base"`
-	Exponent expr `json:"exponent"`
+	Left  expr `json:"left"`
+	Right expr `json:"right"`
 }
 
 func (n number) Eval(x float64) float64 {
@@ -64,5 +64,5 @@ func (d divide) Eval(x float64) float64 {
 }
 
 func (p power) Eval(x float64) float64 {
-	return math.Pow(p.Base.Eval(x), p.Exponent.Eval(x))
+	return math.Pow(p.Left.Eval(x), p.Right.Eval(x))
 }
