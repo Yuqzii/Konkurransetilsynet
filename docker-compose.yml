@@ -1,7 +1,22 @@
 services:
-  main:
+  bot:
     build: ./
     container_name: konkurransetilsynet
     restart: unless-stopped
     environment:
       - TOKEN=${TOKEN}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+  db:
+    image: postgres:17.5
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=bot-data
+    volumes:
+      - konktils-db:/var/lib/postgresql/data 
+    ports:
+      - "5432:5432"
+
+volumes:
+  konktils-db:

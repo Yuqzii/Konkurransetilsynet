@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -14,23 +17,50 @@ import (
 	utilCommands "github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/jackc/pgx/v5"
 )
 
 const prefix string = "!"
+
+// Database info
+const (
+	host   = "db"
+	port   = 5432
+	user   = "postgres"
+	dbname = "bot-data"
+)
 
 func main() {
 	// Write to both stderr and log file
 	logFile, err := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		log.Panic(err)
+		log.Fatal(err)
 	}
 	defer func() {
 		if err := logFile.Close(); err != nil {
-			log.Panic(err)
+			log.Fatal(err)
 		}
 	}()
+	// Clear log file in case it is not empty
+	if err := os.Truncate("log.txt", 0); err != nil {
+		log.Println("Failed to truncate log file: ", err)
+	}
 	mw := io.MultiWriter(os.Stderr, logFile)
 	log.SetOutput(mw)
+
+	// Connect to database
+	db, err := connectToDatabase()
+	if err != nil {
+		log.Fatal("Could not connect to database: ", err)
+	}
+	log.Println("Connected to database.")
+	// Close database when application exits
+	defer func() {
+		err := db.Close(context.Background())
+		if err != nil {
+			log.Fatal("Failed to close database: ", err)
+		}
+	}()
 
 	token := os.Getenv("TOKEN")
 	session, err := discordgo.New("Bot " + token)
@@ -108,4 +138,20 @@ func main() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
+}
+
+func connectToDatabase() (*pgx.Conn, error) {
+	// Connect to database
+	password := os.Getenv("POSTGRES_PASSWORD")
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", user, password, host, port, dbname)
+	db, err := pgx.Connect(context.Background(), connStr)
+	if err != nil {
+		return nil, err
+	}
+	// Make sure database is responding
+	err = db.Ping(context.Background())
+	if err != nil {
+		return nil, errors.Join(errors.New("database did not respond after connecting,"), err)
+	}
+	return db, nil
 }
