@@ -31,22 +31,16 @@ const (
 )
 
 func main() {
-	// Write to both stderr and log file
-	logFile, err := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE, 0644)
+	logFile, err := enableLogFile()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to enable logging to file: ", err)
 	}
+	// Close file when application exits
 	defer func() {
 		if err := logFile.Close(); err != nil {
-			log.Fatal(err)
+			log.Fatal("Failed to close log file: ", err)
 		}
 	}()
-	// Clear log file in case it is not empty
-	if err := os.Truncate("log.txt", 0); err != nil {
-		log.Println("Failed to truncate log file: ", err)
-	}
-	mw := io.MultiWriter(os.Stderr, logFile)
-	log.SetOutput(mw)
 
 	// Connect to database
 	db, err := connectToDatabase()
@@ -62,6 +56,7 @@ func main() {
 		}
 	}()
 
+	// Set up bot
 	token := os.Getenv("TOKEN")
 	session, err := discordgo.New("Bot " + token)
 	if err != nil {
@@ -138,6 +133,23 @@ func main() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
+}
+
+func enableLogFile() (*os.File, error) {
+	const fileName = "log.txt"
+	// Write to both stderr and log file
+	logFile, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return nil, errors.Join(fmt.Errorf("failed to open log file %s,", fileName), err)
+	}
+	// Clear log file in case it is not empty
+	err = os.Truncate(fileName, 0)
+	if err != nil {
+		return nil, errors.Join(fmt.Errorf("could not truncate log file %s,", fileName), err)
+	}
+	mw := io.MultiWriter(os.Stderr, logFile)
+	log.SetOutput(mw)
+	return logFile, nil
 }
 
 func connectToDatabase() (*pgx.Conn, error) {
