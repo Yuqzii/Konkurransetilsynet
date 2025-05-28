@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -15,37 +15,37 @@ const (
 	dbName = "bot-data"
 )
 
-var dbConn *pgx.Conn
+var dbconn *pgxpool.Pool
 
 // Tries to initiliazes this packages connection variable.
 // Returns a connection to the db which should be closed when the application exits.
-func InitDB() (*pgx.Conn, error) {
-	conn, err := connectToDatabase()
+func InitDB() (*pgxpool.Pool, error) {
+	db, err := connectToDatabase()
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-	dbConn = conn
-	return conn, nil
-}
-
-func connectToDatabase() (*pgx.Conn, error) {
-	// Connect to database
-	password := os.Getenv("POSTGRES_PASSWORD")
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", user, password, host, port, dbName)
-	db, err := pgx.Connect(context.Background(), connStr)
-	if err != nil {
-		return nil, err
-	}
-	// Make sure database is responding
-	err = db.Ping(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("database did not respond after connecting: %w", err)
-	}
+	dbconn = db
 	return db, nil
 }
 
-func AddUser(discID, cfName string, conn *pgx.Conn) error {
-	tx, err := conn.Begin(context.Background())
+func connectToDatabase() (*pgxpool.Pool, error) {
+	// Connect to database
+	password := os.Getenv("POSTGRES_PASSWORD")
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", user, password, host, port, dbName)
+	dbpool, err := pgxpool.New(context.Background(), connStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create connection pool: %w", err)
+	}
+	// Make sure database is responding
+	err = dbpool.Ping(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("database did not respond after connecting: %w", err)
+	}
+	return dbpool, nil
+}
+
+func AddUser(discID, cfName string) error {
+	tx, err := dbconn.Begin(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}

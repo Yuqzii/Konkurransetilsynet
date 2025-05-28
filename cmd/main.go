@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -35,18 +34,13 @@ func main() {
 	}()
 
 	// Connect to database
-	conn, err := database.InitDB()
+	db, err := database.InitDB()
 	if err != nil {
 		log.Fatal("Could not connect to database: ", err)
 	}
 	log.Println("Connected to database.")
 	// Close database when application exits
-	defer func() {
-		err := conn.Close(context.Background())
-		if err != nil {
-			log.Fatal("Failed to close database: ", err)
-		}
-	}()
+	defer db.Close()
 
 	// Set up bot
 	token := os.Getenv("TOKEN")
