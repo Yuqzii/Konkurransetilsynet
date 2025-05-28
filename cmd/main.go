@@ -13,22 +13,14 @@ import (
 	"unicode/utf8"
 
 	codeforces "github.com/yuqzii/konkurransetilsynet/internal/codeforces"
+	database "github.com/yuqzii/konkurransetilsynet/internal/database"
 	guessTheFunction "github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
 	utilCommands "github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/jackc/pgx/v5"
 )
 
 const prefix string = "!"
-
-// Database info
-const (
-	host   = "db"
-	port   = 5432
-	user   = "postgres"
-	dbname = "bot-data"
-)
 
 func main() {
 	logFile, err := enableLogFile()
@@ -43,14 +35,14 @@ func main() {
 	}()
 
 	// Connect to database
-	db, err := connectToDatabase()
+	conn, err := database.InitDB()
 	if err != nil {
 		log.Fatal("Could not connect to database: ", err)
 	}
 	log.Println("Connected to database.")
 	// Close database when application exits
 	defer func() {
-		err := db.Close(context.Background())
+		err := conn.Close(context.Background())
 		if err != nil {
 			log.Fatal("Failed to close database: ", err)
 		}
@@ -150,20 +142,4 @@ func enableLogFile() (*os.File, error) {
 	mw := io.MultiWriter(os.Stderr, logFile)
 	log.SetOutput(mw)
 	return logFile, nil
-}
-
-func connectToDatabase() (*pgx.Conn, error) {
-	// Connect to database
-	password := os.Getenv("POSTGRES_PASSWORD")
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", user, password, host, port, dbname)
-	db, err := pgx.Connect(context.Background(), connStr)
-	if err != nil {
-		return nil, err
-	}
-	// Make sure database is responding
-	err = db.Ping(context.Background())
-	if err != nil {
-		return nil, errors.Join(errors.New("database did not respond after connecting,"), err)
-	}
-	return db, nil
 }
