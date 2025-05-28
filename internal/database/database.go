@@ -18,9 +18,9 @@ const (
 
 var dbconn *pgxpool.Pool
 
-// Tries to initiliazes this packages connection variable.
+// Tries to initialize the dbconn variable with a connection from connectToDatabse().
 // Returns a connection to the db which should be closed when the application exits.
-func InitDB() (*pgxpool.Pool, error) {
+func Init() (*pgxpool.Pool, error) {
 	db, err := connectToDatabase()
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)

@@ -34,7 +34,7 @@ func main() {
 	}()
 
 	// Connect to database
-	db, err := database.InitDB()
+	db, err := database.Init()
 	if err != nil {
 		log.Fatal("Could not connect to database: ", err)
 	}
