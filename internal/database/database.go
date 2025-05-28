@@ -9,11 +9,10 @@ import (
 )
 
 const (
-	host    = "db"
-	port    = 5432
-	user    = "postgres"
-	dbName  = "bot-data"
-	cfTable = "codeforces"
+	host   = "db"
+	port   = 5432
+	user   = "postgres"
+	dbName = "bot_data"
 )
 
 var dbconn *pgxpool.Pool
@@ -32,7 +31,8 @@ func Init() (*pgxpool.Pool, error) {
 func connectToDatabase() (*pgxpool.Pool, error) {
 	// Connect to database
 	password := os.Getenv("POSTGRES_PASSWORD")
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", user, password, host, port, dbName)
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
+		user, password, host, port, dbName)
 	dbpool, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connection pool: %w", err)
@@ -52,9 +52,11 @@ func AddCodeforcesUser(discID, cfName string) error {
 	}
 
 	_, err = tx.Exec(context.Background(),
-		fmt.Sprintf("INSERT INTO %s (discordID, username) VALUES (%s, %s);", cfTable, discID, cfName))
+		fmt.Sprintf("INSERT INTO user_data (discord_id, codeforces_name) VALUES (%s, '%s');",
+			discID, cfName))
 	if err != nil {
-		return fmt.Errorf("failed to insert discord id %s and username %s into %s: %w", discID, cfName, dbName, err)
+		return fmt.Errorf("failed to insert discord id %s and codeforces name %s into user_data: %w",
+			discID, cfName, err)
 	}
 
 	err = tx.Commit(context.Background())
