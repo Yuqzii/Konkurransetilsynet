@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	host   = "db"
-	port   = 5432
-	user   = "postgres"
-	dbName = "bot-data"
+	host    = "db"
+	port    = 5432
+	user    = "postgres"
+	dbName  = "bot-data"
+	cfTable = "codeforces"
 )
 
 var dbconn *pgxpool.Pool
@@ -44,14 +45,14 @@ func connectToDatabase() (*pgxpool.Pool, error) {
 	return dbpool, nil
 }
 
-func AddUser(discID, cfName string) error {
+func AddCodeforcesUser(discID, cfName string) error {
 	tx, err := dbconn.Begin(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
 
 	_, err = tx.Exec(context.Background(),
-		fmt.Sprintf("INSERT INTO %s (discordID, username) VALUES (%s, %s);", dbName, discID, cfName))
+		fmt.Sprintf("INSERT INTO %s (discordID, username) VALUES (%s, %s);", cfTable, discID, cfName))
 	if err != nil {
 		return fmt.Errorf("failed to insert discord id %s and username %s into %s: %w", discID, cfName, dbName, err)
 	}
