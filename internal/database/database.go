@@ -61,7 +61,7 @@ func AddCodeforcesUser(discID, cfName string) error {
 
 	err = tx.Commit(context.Background())
 	if err != nil {
-		return fmt.Errorf("failed to commit insertion to %s: %w", dbName, err)
+		return fmt.Errorf("failed to commit insertion to user_data: %w", err)
 	}
 	return nil
 }
