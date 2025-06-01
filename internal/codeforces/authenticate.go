@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 type submissionList struct {
@@ -29,6 +32,87 @@ type submission struct {
 	Verdict string `json:"verdict"`
 }
 
+type problemList struct {
+	Result struct {
+		Problems []problem `json:"problems"`
+	} `json:"result"`
+	Status  string `json:"status"`
+	Comment string `json:"comment,omitempty"`
+}
+
+type problem struct {
+	ContestID int    `json:"contestId"`
+	Index     string `json:"index"`
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+}
+
+func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreate) error {
+	log.Printf("Received authenticate for user '%s'.", handle)
+	prob, err := getRandomProblem()
+	if err != nil {
+		return fmt.Errorf("failed to get a random problem: %w", err)
+	}
+	sendAuthInstructions(prob, s, m)
+
+	authChan := make(chan bool)
+	startAuthCheck(handle, prob.ContestID, prob.Index, 120, authChan)
+	success := <-authChan
+	if success {
+		// Add to database and let user know it succeeded
+	} else {
+		// Tell user that the authentication failed
+	}
+	return nil
+}
+
+func sendAuthInstructions(prob *problem, s *discordgo.Session, m *discordgo.MessageCreate) error {
+	embed := discordgo.MessageEmbed{
+		Title: fmt.Sprintf("Submit a compilation error to %d%s (%s) to authenticate",
+			prob.ContestID, prob.Index, prob.Name),
+		URL: fmt.Sprintf("https://codeforces.com/problemset/problem/%d/%s", prob.ContestID, prob.Index),
+	}
+	_, err := s.ChannelMessageSendEmbed(m.ChannelID, &embed)
+	return err
+}
+
+func getRandomProblem() (*problem, error) {
+	problems, err := getProblems()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get problems: %w", err)
+	}
+	if len(problems) == 0 {
+		return nil, errors.New("cannot get random problem from empty slice.")
+	}
+	return &problems[rand.Intn(len(problems))], nil
+}
+
+func getProblems() (problems []problem, err error) {
+	res, err := http.Get("https://codeforces.com/api/problemset.problems")
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err == nil {
+			err = res.Body.Close()
+		}
+	}()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var apiStruct problemList
+	err = json.Unmarshal(body, &apiStruct)
+
+	if apiStruct.Status == "FAILED" {
+		return nil, errors.New(apiStruct.Comment)
+	}
+
+	return apiStruct.Result.Problems, err
+}
+
 func startAuthCheck(handle string, contID int, problemIdx string, timeoutSeconds int, resultChan chan<- bool) {
 	startTime := time.Now().Unix()
 	log.Printf("Starting codeforces authentication for user '%s'.", handle)
@@ -36,6 +120,8 @@ func startAuthCheck(handle string, contID int, problemIdx string, timeoutSeconds
 		for {
 			// Stop if elapsed time has exceeded the timeout limit
 			if time.Now().Unix()-startTime > int64(timeoutSeconds) {
+				resultChan <- false
+				close(resultChan)
 				return
 			}
 			// Check every 5 seconds
@@ -43,7 +129,8 @@ func startAuthCheck(handle string, contID int, problemIdx string, timeoutSeconds
 			// Get submissions and check if any of them match the criteria
 			subs, err := getSubmissions(handle, 5)
 			if err != nil {
-				log.Printf("Failed to get submissions from user '%s': %v", handle, err)
+				log.Printf("Failed to get submissions from user '%s': %v, retrying...", handle, err)
+				continue
 			}
 			if checkSubmissions(subs, startTime, contID, problemIdx) {
 				resultChan <- true
