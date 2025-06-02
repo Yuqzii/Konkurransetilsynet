@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
 )
 
 type submissionList struct {
@@ -47,8 +48,24 @@ type problem struct {
 	Type      string `json:"type"`
 }
 
+func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
+	// Ensure correct argument count
+	if len(args) < 3 {
+		err := utilCommands.UnknownCommand(s, m)
+		return err
+	}
+	// Start authentication goroutine
+	go func() {
+		err := authenticate(args[2], s, m)
+		if err != nil {
+			log.Println("Authentication failed: ", err)
+		}
+	}()
+	return nil
+}
+
 func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreate) error {
-	log.Printf("Received authenticate for user '%s'.", handle)
+	log.Printf("Received codeforces authenticate for handle '%s'.", handle)
 	prob, err := getRandomProblem()
 	if err != nil {
 		return fmt.Errorf("failed to get a random problem: %w", err)

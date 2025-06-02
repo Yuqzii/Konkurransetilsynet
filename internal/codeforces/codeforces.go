@@ -3,6 +3,7 @@ package codeforces
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -77,6 +78,11 @@ func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.
 		err := addDebugContestCommand(args, s, m)
 		if err != nil {
 			return errors.Join(errors.New("adding debug contest failed,"), err)
+		}
+	case "authenticate":
+		err := authCommand(args, s, m)
+		if err != nil {
+			return fmt.Errorf("authentication command failed: %w", err)
 		}
 	default:
 		err := utilCommands.UnknownCommand(s, m)
