@@ -54,6 +54,19 @@ func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate
 		err := utilCommands.UnknownCommand(s, m)
 		return err
 	}
+
+	log.Printf("Received codeforces authenticate for user with handle '%s'.", args[2])
+
+	userExists, err := checkUserExistance(args[2])
+	if err != nil {
+		return fmt.Errorf("failed to check existance of user: %w", err)
+	}
+	if !userExists {
+		log.Printf("Codeforces user with handle '%s' does not exist.", args[2])
+		err = onUserNotExist(args[2], s, m)
+		return err
+	}
+
 	// Start authentication goroutine
 	go func() {
 		err := authenticate(args[2], s, m)
@@ -64,8 +77,40 @@ func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate
 	return nil
 }
 
+func checkUserExistance(handle string) (exists bool, err error) {
+	type userInfo struct {
+		Status  string `json:"status"`
+		Comment string `json:"comment,omitempty"`
+	}
+	apiStr := fmt.Sprintf("https://codeforces.com/api/user.info?handles=%s&checkHistoricHandles=false", handle)
+	res, err := http.Get(apiStr)
+	if err != nil {
+		return false, fmt.Errorf("failed to call codeforces user.info api: %w", err)
+	}
+	defer func() {
+		err = errors.Join(err, res.Body.Close())
+	}()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return false, err
+	}
+
+	var apiStruct userInfo
+	err = json.Unmarshal(body, &apiStruct)
+
+	exists = apiStruct.Status == "OK"
+	return exists, err
+}
+
+func onUserNotExist(handle string, s *discordgo.Session, m *discordgo.MessageCreate) error {
+	_, err := s.ChannelMessageSend(m.ChannelID,
+		fmt.Sprintf("Could not find a codeforces user with the name '%s', are you sure you spelled it correctly?",
+			handle))
+	return err
+}
+
 func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreate) error {
-	log.Printf("Received codeforces authenticate for handle '%s'.", handle)
 	prob, err := getRandomProblem()
 	if err != nil {
 		return fmt.Errorf("failed to get a random problem: %w", err)
@@ -132,7 +177,7 @@ func getProblems() (problems []problem, err error) {
 
 func startAuthCheck(handle string, contID int, problemIdx string, timeoutSeconds int, resultChan chan<- bool) {
 	startTime := time.Now().Unix()
-	log.Printf("Starting codeforces authentication for user '%s'.", handle)
+	log.Printf("Starting codeforces authentication check for user with handle '%s'.", handle)
 	go func() {
 		for {
 			// Stop if elapsed time has exceeded the timeout limit
@@ -181,9 +226,7 @@ func getSubmissions(handle string, count int) (submissions []submission, err err
 		return nil, err
 	}
 	defer func() {
-		if err == nil {
-			err = res.Body.Close()
-		}
+		err = errors.Join(err, res.Body.Close())
 	}()
 
 	body, err := io.ReadAll(res.Body)
