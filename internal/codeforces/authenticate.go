@@ -129,12 +129,10 @@ func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreat
 }
 
 func sendAuthInstructions(prob *problem, s *discordgo.Session, m *discordgo.MessageCreate) error {
-	embed := discordgo.MessageEmbed{
-		Title: fmt.Sprintf("Submit a compilation error to %d%s (%s) to authenticate",
-			prob.ContestID, prob.Index, prob.Name),
-		URL: fmt.Sprintf("https://codeforces.com/problemset/problem/%d/%s", prob.ContestID, prob.Index),
-	}
-	_, err := s.ChannelMessageSendEmbed(m.ChannelID, &embed)
+	probLink := fmt.Sprintf("https://codeforces.com/problemset/problem/%d/%s", prob.ContestID, prob.Index)
+	msgStr := fmt.Sprintf("Submit a compilation error to [%s - %d%s](%s) within 2 minutes to authenticate.",
+		prob.Name, prob.ContestID, prob.Index, probLink)
+	_, err := s.ChannelMessageSend(m.ChannelID, msgStr)
 	return err
 }
 
