@@ -123,17 +123,33 @@ func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreat
 	if success {
 		// Add to database and let user know it succeeded
 	} else {
-		// Tell user that the authentication failed
+		err := onAuthFail(handle, prob, s, m)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func sendAuthInstructions(prob *problem, s *discordgo.Session, m *discordgo.MessageCreate) error {
 	probLink := fmt.Sprintf("https://codeforces.com/problemset/problem/%d/%s", prob.ContestID, prob.Index)
-	msgStr := fmt.Sprintf("Submit a compilation error to [%s - %d%s](%s) within 2 minutes to authenticate.",
-		prob.Name, prob.ContestID, prob.Index, probLink)
+	msgStr := fmt.Sprintf("Submit a compilation error to [%s - %d%s](%s) within 2 minutes to authenticate. <@%s>",
+		prob.Name, prob.ContestID, prob.Index, probLink, m.Author.ID)
 	_, err := s.ChannelMessageSend(m.ChannelID, msgStr)
 	return err
+}
+
+func onAuthFail(handle string, prob *problem, s *discordgo.Session, m *discordgo.MessageCreate) error {
+	// Send message explaining that the authentication failed
+	probLink := fmt.Sprintf("https://codeforces.com/problemset/problem/%d/%s", prob.ContestID, prob.Index)
+	msgStr := fmt.Sprintf("Authentication for codeforces user with handle '%s' failed. "+
+		"Did not find a compilation error submitted to [%s - %d%s](%s). <@%s>",
+		handle, prob.Name, prob.ContestID, prob.Index, probLink, m.Author.ID)
+	_, err := s.ChannelMessageSend(m.ChannelID, msgStr)
+	if err != nil {
+		return fmt.Errorf("failed to send authentication failed message: %w", err)
+	}
+	return nil
 }
 
 func getRandomProblem() (*problem, error) {
