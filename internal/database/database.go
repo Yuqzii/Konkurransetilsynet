@@ -55,7 +55,7 @@ func AddCodeforcesUser(discID, cfName string) error {
 		fmt.Sprintf("INSERT INTO user_data (discord_id, codeforces_name) VALUES (%s, '%s');",
 			discID, cfName))
 	if err != nil {
-		return fmt.Errorf("failed to insert discord id %s and codeforces name %s into user_data: %w",
+		return fmt.Errorf("failed to insert discord id %s and codeforces name '%s' into user_data: %w",
 			discID, cfName, err)
 	}
 
