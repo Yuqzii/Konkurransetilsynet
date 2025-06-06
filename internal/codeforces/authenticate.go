@@ -228,7 +228,7 @@ func onAuthFail(handle string, prob *problem, s *discordgo.Session, m *discordgo
 	return nil
 }
 
-func getRandomProblem() (*problem, error) {
+func getRandomProblem() (prob *problem, err error) {
 	problems, err := getProblems()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get problems: %w", err)
@@ -236,7 +236,12 @@ func getRandomProblem() (*problem, error) {
 	if len(problems) == 0 {
 		return nil, errors.New("cannot get random problem from empty slice.")
 	}
-	return &problems[rand.Intn(len(problems))], nil
+
+	// Max rating for Codeforces so that most can solve it after submitting compilation error
+	for prob == nil || prob.Rating > 1500 {
+		prob = &problems[rand.Intn(len(problems))]
+	}
+	return prob, err
 }
 
 func getProblems() (problems []problem, err error) {
