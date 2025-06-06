@@ -65,3 +65,13 @@ func AddCodeforcesUser(discID, cfName string) error {
 	}
 	return nil
 }
+
+func GetConnectedCodeforces(discID, handle string) (connectedHandle string, err error) {
+	queryStr := fmt.Sprintf("SELECT codeforces_name FROM user_data WHERE discord_id='%s'", discID)
+	err = dbconn.QueryRow(context.Background(), queryStr).Scan(&connectedHandle)
+	if err != nil {
+		return "", err
+	}
+
+	return connectedHandle, nil
+}

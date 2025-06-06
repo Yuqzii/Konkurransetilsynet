@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/yuqzii/konkurransetilsynet/internal/database"
 	"github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
@@ -58,7 +59,22 @@ func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate
 		return err
 	}
 
-	log.Printf("Received codeforces authenticate for user with handle '%s'.", args[2])
+	log.Printf("Received codeforces authenticate for user with handle '%s' from %s (%s).",
+		args[2], m.Author.ID, m.Author.Username)
+
+	connectedHandle, err := database.GetConnectedCodeforces(m.Author.ID, args[2])
+	// ErrNoRows expected when user is not already connected
+	if err != pgx.ErrNoRows {
+		if err != nil {
+			log.Println("Failed to check in database:", err)
+		} else {
+			err = onAlreadyConnected(connectedHandle, s, m)
+			if err != nil {
+				log.Println("Failed to send already connected message:", err)
+			}
+			return nil
+		}
+	}
 
 	userExists, err := checkUserExistence(args[2])
 	if err != nil {
@@ -78,6 +94,14 @@ func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate
 		}
 	}()
 	return nil
+}
+
+func onAlreadyConnected(handle string, s *discordgo.Session, m *discordgo.MessageCreate) error {
+	log.Printf("Discord user %s (%s) is already connected to codeforces user '%s'.",
+		m.Author.ID, m.Author.Username, handle)
+	msgStr := fmt.Sprintf("<@%s> is already connected to the codeforces user '%s'.", m.Author.ID, handle)
+	_, err := s.ChannelMessageSend(m.ChannelID, msgStr)
+	return err
 }
 
 func checkUserExistence(handle string) (exists bool, err error) {
