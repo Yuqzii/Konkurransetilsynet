@@ -67,7 +67,7 @@ func AddCodeforcesUser(discID, handle string) error {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
 
-	queryStr := fmt.Sprintf("INSERT INTO user_data (discord_id, codeforces_name) VALUES (%s, '%s');",
+	queryStr := fmt.Sprintf("INSERT INTO user_data (discord_id, codeforces_handle) VALUES (%s, '%s');",
 		discID, handle)
 	_, err = tx.Exec(context.Background(), queryStr)
 	if err != nil {
@@ -88,7 +88,7 @@ func UpdateCodeforcesUser(discID, handle string) error {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
 
-	queryStr := fmt.Sprintf("UPDATE user_data SET codeforces_name='%s' WHERE discord_id=%s;", handle, discID)
+	queryStr := fmt.Sprintf("UPDATE user_data SET codeforces_handle='%s' WHERE discord_id=%s;", handle, discID)
 	_, err = tx.Exec(context.Background(), queryStr)
 	if err != nil {
 		return fmt.Errorf("failed to update the codeforces handle belonging to discord id %s to '%s': %w",
@@ -103,7 +103,7 @@ func UpdateCodeforcesUser(discID, handle string) error {
 }
 
 func GetConnectedCodeforces(discID, handle string) (connectedHandle string, err error) {
-	queryStr := fmt.Sprintf("SELECT codeforces_name FROM user_data WHERE discord_id='%s';", discID)
+	queryStr := fmt.Sprintf("SELECT codeforces_handle FROM user_data WHERE discord_id='%s';", discID)
 	err = dbconn.QueryRow(context.Background(), queryStr).Scan(&connectedHandle)
 	if err != nil {
 		return "", err
