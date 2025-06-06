@@ -150,7 +150,10 @@ func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreat
 	}
 	//prob = testProblem
 
-	sendAuthInstructions(prob, s, m)
+	err = sendAuthInstructions(prob, s, m)
+	if err != nil {
+		return fmt.Errorf("failed to send auth instructions: %w", err)
+	}
 
 	authChan := make(chan bool)
 	startAuthCheck(handle, prob.ContestID, prob.Index, 120, authChan)
@@ -248,7 +251,7 @@ func getRandomProblem() (prob *problem, err error) {
 		return nil, fmt.Errorf("failed to get problems: %w", err)
 	}
 	if len(problems) == 0 {
-		return nil, errors.New("cannot get random problem from empty slice.")
+		return nil, errors.New("cannot get random problem from empty slice")
 	}
 
 	// Max rating for Codeforces so that most can solve it after submitting compilation error
