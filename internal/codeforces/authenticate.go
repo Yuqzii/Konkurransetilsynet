@@ -12,7 +12,6 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/yuqzii/konkurransetilsynet/internal/database"
 	"github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
 )
@@ -67,7 +66,7 @@ func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate
 	if err != pgx.ErrNoRows {
 		if err != nil {
 			log.Println("Failed to check in database:", err)
-		} else {
+		} else if connectedHandle == "" {
 			err = onAlreadyConnected(connectedHandle, s, m)
 			if err != nil {
 				log.Println("Failed to send already connected message:", err)
@@ -179,40 +178,55 @@ func sendAuthInstructions(prob *problem, s *discordgo.Session, m *discordgo.Mess
 }
 
 func onAuthSuccess(handle string, s *discordgo.Session, m *discordgo.MessageCreate) error {
-	// Add to database
-	err := database.AddCodeforcesUser(m.Author.ID, handle)
+	inDB, err := database.DiscordIDExists(m.Author.ID)
 	if err != nil {
-		// Did it fail because the user already exists in the database?
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" { // 23505 is unique violation error code
-			log.Printf("Discord user %s (%s) trying to authenticate for Codeforces handle "+
-				"'%s' already exists in the database.",
-				m.Author.ID, m.Author.Username, handle)
-			msgStr := fmt.Sprintf("<@%s> is already connected to a Codeforces user.", m.Author.ID)
-			_, err = s.ChannelMessageSend(m.ChannelID, msgStr)
+		msgErr := authSuccessFailMessage(s, m)
+		err = errors.Join(err, msgErr)
+		return fmt.Errorf("failed to check if Discord ID %s exists in database: %w", m.Author.ID, err)
+	}
+	if inDB {
+		// Cannot insert new value, need to update
+		log.Printf("Discord user %s (%s) already exists in database, updating Codeforces handle to '%s',",
+			m.Author.ID, m.Author.Username, handle)
+		err = database.UpdateCodeforcesUser(m.Author.ID, handle)
+		if err != nil {
+			msgErr := authSuccessFailMessage(s, m)
+			err = errors.Join(err, msgErr)
 			return err
 		}
-
-		// Send discord message to let user know that the authentication succeeded but did not complete
-		msgStr := "Authentication succeeded, but failed to store the information. " +
-			"If the problem persists please contact one of the devs or open an issue on the GitHub page."
-		_, msgErr := s.ChannelMessageSend(m.ChannelID, msgStr)
-		if msgErr != nil {
+	} else {
+		// Insert new column
+		log.Printf("Discord user %s (%s) does not exist in database, inserting new row with Codeforces handle '%s'.",
+			m.Author.ID, m.Author.Username, handle)
+		err = database.AddCodeforcesUser(m.Author.ID, handle)
+		if err != nil {
+			msgErr := authSuccessFailMessage(s, m)
 			err = errors.Join(err, msgErr)
+			return err
 		}
-		return fmt.Errorf("failed to add to database: %w", err)
 	}
 
+	log.Printf("Successfully authenticated discord user %s (%s) with Codeforces handle '%s'",
+		m.Author.ID, m.Author.Username, handle)
 	// Tell user that the authentication succeeded
-	msgStr := fmt.Sprintf("Successfully authenticated discord user <@%s> with Codeforces handle '%s'", m.Author.ID, handle)
+	msgStr := fmt.Sprintf("Successfully authenticated discord user <@%s> with Codeforces handle '%s'.",
+		m.Author.ID, handle)
 	_, err = s.ChannelMessageSend(m.ChannelID, msgStr)
 	if err != nil {
 		return fmt.Errorf("failed to send authentication success message: %w", err)
 	}
 
-	log.Printf("Successfully authenticated discord user %s (%s) with Codeforces handle '%s'",
-		m.Author.ID, m.Author.Username, handle)
 	return nil
+}
+
+// Send discord message to let user know that the authentication 'succeeded', but something went wrong on our end
+func authSuccessFailMessage(s *discordgo.Session, m *discordgo.MessageCreate) error {
+	msgStr := fmt.Sprintf("Successfully detected a compilation error submission, "+
+		"but an error occurred when storing your information. "+
+		"If the problem persists please contact one of the devs or open an issue on the "+
+		"[Github page](https://github.com/yuqzii/konkurransetilsynet). <@%s>", m.Author.ID)
+	_, err := s.ChannelMessageSend(m.ChannelID, msgStr)
+	return err
 }
 
 func onAuthFail(handle string, prob *problem, s *discordgo.Session, m *discordgo.MessageCreate) error {

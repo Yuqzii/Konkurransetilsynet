@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -45,29 +46,64 @@ func connectToDatabase() (*pgxpool.Pool, error) {
 	return dbpool, nil
 }
 
-func AddCodeforcesUser(discID, cfName string) error {
+func DiscordIDExists(discID string) (bool, error) {
+	queryStr := fmt.Sprintf("SELECT discord_id FROM user_data WHERE discord_id='%s';", discID)
+	var dbDiscID string
+	err := dbconn.QueryRow(context.Background(), queryStr).Scan(&dbDiscID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+
+	return true, nil
+}
+
+func AddCodeforcesUser(discID, handle string) error {
 	tx, err := dbconn.Begin(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
 
-	_, err = tx.Exec(context.Background(),
-		fmt.Sprintf("INSERT INTO user_data (discord_id, codeforces_name) VALUES (%s, '%s');",
-			discID, cfName))
+	queryStr := fmt.Sprintf("INSERT INTO user_data (discord_id, codeforces_name) VALUES (%s, '%s');",
+		discID, handle)
+	_, err = tx.Exec(context.Background(), queryStr)
 	if err != nil {
 		return fmt.Errorf("failed to insert discord id %s and codeforces name '%s' into user_data: %w",
-			discID, cfName, err)
+			discID, handle, err)
 	}
 
 	err = tx.Commit(context.Background())
 	if err != nil {
-		return fmt.Errorf("failed to commit insertion to user_data: %w", err)
+		return fmt.Errorf("failed to commit insertion '%s' to user_data: %w", queryStr, err)
+	}
+	return nil
+}
+
+func UpdateCodeforcesUser(discID, handle string) error {
+	tx, err := dbconn.Begin(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+
+	queryStr := fmt.Sprintf("UPDATE user_data SET codeforces_name='%s' WHERE discord_id=%s;", handle, discID)
+	_, err = tx.Exec(context.Background(), queryStr)
+	if err != nil {
+		return fmt.Errorf("failed to update the codeforces handle belonging to discord id %s to '%s': %w",
+			discID, handle, err)
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to commit update '%s' to user_data: %w", queryStr, err)
 	}
 	return nil
 }
 
 func GetConnectedCodeforces(discID, handle string) (connectedHandle string, err error) {
-	queryStr := fmt.Sprintf("SELECT codeforces_name FROM user_data WHERE discord_id='%s'", discID)
+	queryStr := fmt.Sprintf("SELECT codeforces_name FROM user_data WHERE discord_id='%s';", discID)
 	err = dbconn.QueryRow(context.Background(), queryStr).Scan(&connectedHandle)
 	if err != nil {
 		return "", err
