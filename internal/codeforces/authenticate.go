@@ -16,6 +16,13 @@ import (
 	"github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
 )
 
+const (
+	submissionCheckInteval = 5 * time.Second
+	submissionCheckCount   = 5
+	authTimeoutSeconds     = 120
+	maxProblemRating       = 1500
+)
+
 type submissionList struct {
 	Submissions []submission `json:"result"`
 	Status      string       `json:"status"`
@@ -143,7 +150,7 @@ func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreat
 		return fmt.Errorf("getting problems from Codeforces API: %w", err)
 	}
 	problems = filterProblems(problems, func(prob *problem) bool {
-		return prob.Rating <= 1500
+		return prob.Rating <= maxProblemRating
 	})
 	prob, err := getRandomProblem(problems)
 	if err != nil {
@@ -167,7 +174,7 @@ func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreat
 	}
 
 	authChan := make(chan bool)
-	startAuthCheck(handle, prob.ContestID, prob.Index, 120, authChan)
+	startAuthCheck(handle, prob.ContestID, prob.Index, authTimeoutSeconds, authChan)
 	success := <-authChan
 	if success {
 		err = onAuthSuccess(handle, s, m)
@@ -314,9 +321,9 @@ func startAuthCheck(handle string, contID int, problemIdx string, timeoutSeconds
 				return
 			}
 			// Check every 5 seconds
-			time.Sleep(time.Second * 5)
+			time.Sleep(submissionCheckInteval)
 			// Get submissions and check if any of them match the criteria
-			subs, err := getSubmissions(handle, 5)
+			subs, err := getSubmissions(handle, submissionCheckCount)
 			if err != nil {
 				log.Printf("Failed to get submissions from user '%s': %v, retrying...", handle, err)
 				continue
