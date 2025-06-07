@@ -66,7 +66,7 @@ func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate
 	if err != pgx.ErrNoRows {
 		if err != nil {
 			log.Println("Failed to check in database:", err)
-		} else if connectedHandle == "" {
+		} else if connectedHandle != "" {
 			err = onAlreadyConnected(connectedHandle, s, m)
 			if err != nil {
 				log.Println("Failed to send already connected message:", err)
