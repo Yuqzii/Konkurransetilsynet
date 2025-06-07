@@ -66,7 +66,7 @@ func AddCodeforcesUser(discID, handle string) error {
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback(context.Background())
+	defer tx.Rollback(context.Background()) // nolint: errcheck
 
 	_, err = tx.Exec(context.Background(),
 		"INSERT INTO user_data (discord_id, codeforces_handle) VALUES ($1, $2);", discID, handle)
@@ -87,7 +87,7 @@ func UpdateCodeforcesUser(discID, handle string) error {
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback(context.Background())
+	defer tx.Rollback(context.Background()) // nolint: errcheck
 
 	_, err = tx.Exec(context.Background(),
 		"UPDATE user_data SET codeforces_handle=$1 WHERE discord_id=$2;", handle, discID)

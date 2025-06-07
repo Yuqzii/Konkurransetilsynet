@@ -159,7 +159,7 @@ func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreat
 
 	const debug bool = true
 	if debug {
-		var testProblem *problem = &problem{
+		var testProblem = &problem{
 			ContestID: 1627,
 			Index:     "C",
 			Name:      "Not Assigning",
