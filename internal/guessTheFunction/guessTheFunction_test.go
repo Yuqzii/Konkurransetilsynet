@@ -1,11 +1,50 @@
 package guessTheFunction
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/rand"
 	"testing"
 )
+
+type TestCase struct {
+	Input    string `json:"input"`
+	Expected expr   `json:"expected"`
+}
+
+func (tc *TestCase) MarshalJSON() ([]byte, error) {
+	var jsonFormat struct {
+		Input    string          `json:"input"`
+		Expected json.RawMessage `json:"expected"`
+	}
+	jsonFormat.Input = tc.Input
+	data, err := MarshalExpr(tc.Expected)
+	if err != nil {
+		return nil, err
+	}
+	jsonFormat.Expected = data
+
+	return json.Marshal(jsonFormat)
+}
+
+func (tc *TestCase) UnmarshalJSON(data []byte) error {
+	var jsonFormat struct {
+		Input    string          `json:"input"`
+		Expected json.RawMessage `json:"expected"`
+	}
+	if err := json.Unmarshal(data, &jsonFormat); err != nil {
+		return err
+	}
+
+	tc.Input = jsonFormat.Input
+	expr, err := unmarshalExpr(jsonFormat.Expected)
+	if err != nil {
+		return err
+	}
+	tc.Expected = expr
+	return nil
+}
 
 var TestCases_FunctionParsing = [...]TestCase{
 	{"x+1", add{
