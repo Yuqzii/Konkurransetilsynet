@@ -136,19 +136,22 @@ func onUserNotExist(handle string, s *discordgo.Session, m *discordgo.MessageCre
 	return err
 }
 
-//var testProblem *problem = &problem{
-//	ContestID: 1627,
-//	Index:     "C",
-//	Name:      "Not Assigning",
-//	Rating:    1400,
-//}
-
 func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreate) error {
 	prob, err := getRandomProblem()
 	if err != nil {
 		return err
 	}
-	//prob = testProblem
+
+	const debug bool = true
+	if debug {
+		var testProblem *problem = &problem{
+			ContestID: 1627,
+			Index:     "C",
+			Name:      "Not Assigning",
+			Rating:    1400,
+		}
+		prob = testProblem
+	}
 
 	err = sendAuthInstructions(prob, s, m)
 	if err != nil {
