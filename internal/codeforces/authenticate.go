@@ -137,7 +137,15 @@ func onUserNotExist(handle string, s *discordgo.Session, m *discordgo.MessageCre
 }
 
 func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreate) error {
-	prob, err := getRandomProblem()
+	// Get random problem with a rating <= 1500
+	problems, err := getProblems()
+	if err != nil {
+		return fmt.Errorf("getting problems from Codeforces API: %w", err)
+	}
+	problems = filterProblems(problems, func(prob *problem) bool {
+		return prob.Rating <= 1500
+	})
+	prob, err := getRandomProblem(problems)
 	if err != nil {
 		return err
 	}
@@ -248,22 +256,26 @@ func onAuthFail(handle string, prob *problem, s *discordgo.Session, m *discordgo
 	return nil
 }
 
-func getRandomProblem() (prob *problem, err error) {
-	problems, err := getProblems()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get problems: %w", err)
+// Filters problems based on the f function parameter
+func filterProblems(problems []problem, f func(*problem) bool) (result []problem) {
+	for _, problem := range problems {
+		if f(&problem) {
+			result = append(result, problem)
+		}
 	}
+	return result
+}
+
+// Returns a random problem of the problem slice provided
+func getRandomProblem(problems []problem) (*problem, error) {
 	if len(problems) == 0 {
 		return nil, errors.New("cannot get random problem from empty slice")
 	}
-
-	// Max rating for Codeforces so that most can solve it after submitting compilation error
-	for prob == nil || prob.Rating > 1500 {
-		prob = &problems[rand.Intn(len(problems))]
-	}
-	return prob, err
+	prob := &problems[rand.Intn(len(problems))]
+	return prob, nil
 }
 
+// Returns all problems from the Codeforces API
 func getProblems() (problems []problem, err error) {
 	res, err := http.Get("https://codeforces.com/api/problemset.problems")
 	if err != nil {
