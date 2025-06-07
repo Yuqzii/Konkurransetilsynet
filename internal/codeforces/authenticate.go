@@ -92,13 +92,10 @@ func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate
 		return err
 	}
 
-	// Start authentication goroutine
-	go func() {
-		err := authenticate(args[2], s, m)
-		if err != nil {
-			log.Println("Authentication failed:", err)
-		}
-	}()
+	err = authenticate(args[2], s, m)
+	if err != nil {
+		log.Println("Authentication failed:", err)
+	}
 	return nil
 }
 
@@ -320,7 +317,6 @@ func startAuthCheck(handle string, contID int, problemIdx string, timeoutSeconds
 				close(resultChan)
 				return
 			}
-			// Check every 5 seconds
 			time.Sleep(submissionCheckInteval)
 			// Get submissions and check if any of them match the criteria
 			subs, err := getSubmissions(handle, submissionCheckCount)
