@@ -68,7 +68,7 @@ func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate
 	log.Printf("Received Codeforces authenticate for user with handle '%s' from %s (%s).",
 		args[2], m.Author.ID, m.Author.Username)
 
-	connectedHandle, err := database.GetConnectedCodeforces(m.Author.ID, args[2])
+	connectedHandle, err := database.GetConnectedCodeforces(m.Author.ID)
 	// ErrNoRows expected when user is not already connected
 	if err != pgx.ErrNoRows {
 		if err != nil {

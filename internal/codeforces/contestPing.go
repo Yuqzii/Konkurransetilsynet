@@ -84,8 +84,8 @@ func contestPing(contests *contestList, idx int, session *discordgo.Session) err
 	return nil
 }
 
-func updatePingData(s *discordgo.Session) error {
-	data, err := getPingData(s, "contest-pings", "Contest Ping")
+func updatePingData(s *discordgo.Session, guilds []*discordgo.Guild) error {
+	data, err := getPingData(s, guilds, "contest-pings", "Contest Ping")
 	if err != nil {
 		return err
 	}
@@ -96,81 +96,21 @@ func updatePingData(s *discordgo.Session) error {
 	return nil
 }
 
-func getPingData(s *discordgo.Session, channelName string, roleName string) ([]pingData, error) {
-	var result []pingData
+func getPingData(s *discordgo.Session, guilds []*discordgo.Guild,
+	channelName string, roleName string) (result []pingData, err error) {
+	channels, err := createChannelIfNotExist(s, channelName, guilds)
+	if err != nil {
+		return nil, err
+	}
 
-	for _, guild := range s.State.Guilds {
-		pingChannel, err := getChannelIDByName(channelName, guild.ID, s)
-		if err != nil {
-			return nil, errors.Join(errors.New("getting channel ID failed,"), err)
-		}
-		// Create ping channel if server does not have one
-		if pingChannel == "" {
-			newChannel, err := s.GuildChannelCreate(guild.ID, channelName, discordgo.ChannelTypeGuildText)
-			if err != nil {
-				return nil, err
-			}
+	roles, err := createRoleIfNotExists(s, roleName, guilds)
+	if err != nil {
+		return nil, err
+	}
 
-			pingChannel = newChannel.ID
-		}
-
-		pingRole, err := getRoleIDByName(roleName, guild.ID, s)
-		if err != nil {
-			return nil, errors.Join(errors.New("getting role ID failed,"), err)
-		}
-		// Create ping role if server does not have one
-		if pingRole == "" {
-			newRole, err := s.GuildRoleCreate(guild.ID, &discordgo.RoleParams{
-				Name: roleName,
-			})
-			if err != nil {
-				return nil, errors.Join(errors.New("failed to create ping role,"), err)
-			}
-
-			pingRole = newRole.ID
-		}
-
-		result = append(result, pingData{pingChannel, pingRole})
+	for i := range len(guilds) {
+		result = append(result, pingData{channels[i], roles[i]})
 	}
 
 	return result, nil
-}
-
-// @return	ID of the channel as a string, empty ("") if there is no channel with the provided name.
-func getChannelIDByName(name string, guildID string, s *discordgo.Session) (string, error) {
-	channels, err := s.GuildChannels(guildID)
-	if err != nil {
-		return "", err
-	}
-
-	// Try to find a channel with the name
-	for _, channel := range channels {
-		// Skip non-text channels
-		if channel.Type != discordgo.ChannelTypeGuildText {
-			continue
-		}
-
-		if channel.Name == name {
-			return channel.ID, nil
-		}
-	}
-
-	return "", nil
-}
-
-// @return	ID of the role as a string, empty ("") if there is no role with the provided name.
-func getRoleIDByName(name string, guildID string, s *discordgo.Session) (string, error) {
-	roles, err := s.GuildRoles(guildID)
-	if err != nil {
-		return "", err
-	}
-
-	// Try to find role with correct name
-	for _, role := range roles {
-		if role.Name == name {
-			return role.ID, nil
-		}
-	}
-
-	return "", nil
 }
