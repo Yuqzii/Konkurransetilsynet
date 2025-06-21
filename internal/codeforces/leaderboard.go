@@ -6,15 +6,39 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5"
 	"github.com/yuqzii/konkurransetilsynet/internal/database"
 )
 
+const (
+	channelName string = "cf-leaderboard"
+)
+
 type ratingChange struct {
 	OldRating int `json:"oldRating"`
 	NewRating int `json:"newRating"`
+}
+
+type lbGuildData struct {
+	channels []string // Slice of channel IDs
+	mu       sync.RWMutex
+}
+
+var guildData lbGuildData
+
+func updateLeaderboardGuildData(s *discordgo.Session, guilds []*discordgo.Guild) error {
+	channels, err := createChannelIfNotExist(s, channelName, guilds)
+	if err != nil {
+		return err
+	}
+
+	guildData.mu.Lock()
+	guildData.channels = channels
+	guildData.mu.Unlock()
+	return nil
 }
 
 func getCodeforcesInGuild(guildID string, s *discordgo.Session) (result []string, err error) {

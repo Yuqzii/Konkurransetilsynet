@@ -59,7 +59,10 @@ func Init(s *discordgo.Session) error {
 	var guilds []*discordgo.Guild
 	copy(guilds, s.State.Guilds) // Deep copy to ensure the same list is used for all initialization
 	if err := updatePingData(s, guilds); err != nil {
-		return err
+		return fmt.Errorf("initializing contest ping data: %w", err)
+	}
+	if err := updateLeaderboardGuildData(s, guilds); err != nil {
+		return fmt.Errorf("initializing leaderboard guild data: %w", err)
 	}
 	startContestPingCheck(&upcoming, 1*time.Minute, s)
 	return nil
