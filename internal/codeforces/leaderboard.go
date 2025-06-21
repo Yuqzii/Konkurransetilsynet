@@ -154,5 +154,5 @@ func getRating(handle string) (rating *ratingChange, err error) {
 		return nil, errors.New(api.Comment)
 	}
 
-	return &api.Result[0], err
+	return &api.Result[len(api.Result)-1], err
 }
