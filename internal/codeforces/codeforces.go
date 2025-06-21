@@ -89,6 +89,11 @@ func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.
 		if err != nil {
 			return fmt.Errorf("authentication command failed: %w", err)
 		}
+	case "leaderboard":
+		err := sendLeaderboardMessage(m.GuildID, m.ChannelID, s)
+		if err != nil {
+			return fmt.Errorf("sending leaderboard message: %w", err)
+		}
 	default:
 		err := utilCommands.UnknownCommand(s, m)
 		return err
