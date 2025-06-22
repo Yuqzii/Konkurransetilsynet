@@ -45,14 +45,36 @@ func updateLeaderboardGuildData(s *discordgo.Session, guilds []*discordgo.Guild)
 }
 
 func sendLeaderboardMessage(guildID string, channelID string, s *discordgo.Session) error {
+	ratings, err := getRatingsInGuild(guildID, s)
+	if err != nil {
+		return fmt.Errorf("getting ratings in guild %s: %w", guildID, err)
+	}
+	// Sort by new rating descending
+	sort.Slice(ratings, func(i, j int) bool {
+		return ratings[i].NewRating > ratings[j].NewRating
+	})
+
+	messageStr := ""
+	for i, rating := range ratings {
+		messageStr += fmt.Sprintf("%d. %s (%d)\n", i+1, rating.Handle, rating.NewRating)
+	}
+
+	_, err = s.ChannelMessageSend(channelID, messageStr)
+	if err != nil {
+		return fmt.Errorf("sending leaderboard message: %w", err)
+	}
+
+	return nil
+}
+
+func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, error) {
 	handles, err := getCodeforcesInGuild(guildID, s)
 	if err != nil {
-		return fmt.Errorf("getting codeforces handles in %s: %w", guildID, err)
+		return nil, fmt.Errorf("getting Codeforces handles in %s: %w", guildID, err)
 	}
 
 	if len(handles) == 0 {
-		log.Printf("No connected Codeforces in guild %s. Not sending leaderboard message.", guildID)
-		return nil
+		return nil, errors.New("no connected Codeforces in the guild")
 	}
 
 	ratingChan := make(chan *ratingChange)
@@ -73,22 +95,8 @@ func sendLeaderboardMessage(guildID string, channelID string, s *discordgo.Sessi
 		ratings = append(ratings, rating)
 	}
 
-	// Sort by new rating
-	sort.Slice(ratings, func(i, j int) bool {
-		return ratings[i].NewRating > ratings[j].NewRating
-	})
+	return ratings, nil
 
-	messageStr := ""
-	for i, rating := range ratings {
-		messageStr += fmt.Sprintf("%d. %s (%d)\n", i+1, rating.Handle, rating.NewRating)
-	}
-
-	_, err = s.ChannelMessageSend(channelID, messageStr)
-	if err != nil {
-		return fmt.Errorf("sending leaderboard message: %w", err)
-	}
-
-	return nil
 }
 
 func getCodeforcesInGuild(guildID string, s *discordgo.Session) (result []string, err error) {
