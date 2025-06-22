@@ -23,6 +23,7 @@ type ratingChange struct {
 	Handle    string `json:"handle"`
 	OldRating int    `json:"oldRating"`
 	NewRating int    `json:"newRating"`
+	discordID string
 }
 
 type lbGuildData struct {
@@ -56,10 +57,14 @@ func sendLeaderboardMessage(guildID string, channelID string, s *discordgo.Sessi
 
 	messageStr := ""
 	for i, rating := range ratings {
-		messageStr += fmt.Sprintf("%d. %s (%d)\n", i+1, rating.Handle, rating.NewRating)
+		messageStr += fmt.Sprintf("%d. <@%s> (%s): %d\n", i+1, rating.discordID, rating.Handle, rating.NewRating)
 	}
 
-	_, err = s.ChannelMessageSend(channelID, messageStr)
+	msgData := discordgo.MessageSend{
+		Content: messageStr,
+		Flags:   discordgo.MessageFlagsSuppressNotifications,
+	}
+	_, err = s.ChannelMessageSendComplex(channelID, &msgData)
 	if err != nil {
 		return fmt.Errorf("sending leaderboard message: %w", err)
 	}
@@ -68,7 +73,7 @@ func sendLeaderboardMessage(guildID string, channelID string, s *discordgo.Sessi
 }
 
 func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, error) {
-	handles, err := getCodeforcesInGuild(guildID, s)
+	handles, ids, err := getCodeforcesInGuild(guildID, s)
 	if err != nil {
 		return nil, fmt.Errorf("getting Codeforces handles in %s: %w", guildID, err)
 	}
@@ -79,16 +84,17 @@ func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, e
 
 	ratingChan := make(chan *ratingChange)
 	var wg sync.WaitGroup
-	for _, handle := range handles {
+	for i := range handles {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
-			rating, err := getRating(handle)
+			rating, err := getRating(handles[i])
 			if err != nil {
-				log.Printf("Getting Codeforces rating from handle %s failed: %s", handle, err)
+				log.Printf("Getting Codeforces rating from handle %s failed: %s", handles[i], err)
 				return
 			}
+			rating.discordID = ids[i]
 			ratingChan <- rating
 		}()
 	}
@@ -106,10 +112,10 @@ func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, e
 	return ratings, nil
 }
 
-func getCodeforcesInGuild(guildID string, s *discordgo.Session) (result []string, err error) {
+func getCodeforcesInGuild(guildID string, s *discordgo.Session) (result []string, discordIDs []string, err error) {
 	guild, err := s.State.Guild(guildID)
 	if err != nil {
-		return nil, fmt.Errorf("getting guild from id %s: %w", guildID, err)
+		return nil, nil, fmt.Errorf("getting guild from id %s: %w", guildID, err)
 	}
 
 	// Helper lambda to avoid duplicate code in member loop and owner
@@ -122,6 +128,7 @@ func getCodeforcesInGuild(guildID string, s *discordgo.Session) (result []string
 
 		if handle != "" {
 			result = append(result, handle)
+			discordIDs = append(discordIDs, id)
 		}
 
 		return nil
@@ -130,17 +137,17 @@ func getCodeforcesInGuild(guildID string, s *discordgo.Session) (result []string
 	for _, member := range guild.Members {
 		err = getCodeforcesFromID(member.User.ID)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
 	// guild.Members does for some reason not include owner, this includes the owner in the leaderboard
 	err = getCodeforcesFromID(guild.OwnerID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return result, nil
+	return result, discordIDs, nil
 }
 
 func getRating(handle string) (rating *ratingChange, err error) {
