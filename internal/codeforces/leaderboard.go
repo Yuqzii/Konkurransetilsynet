@@ -78,8 +78,12 @@ func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, e
 	}
 
 	ratingChan := make(chan *ratingChange)
+	var wg sync.WaitGroup
 	for _, handle := range handles {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
+
 			rating, err := getRating(handle)
 			if err != nil {
 				log.Printf("Getting Codeforces rating from handle %s failed: %s", handle, err)
@@ -89,14 +93,17 @@ func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, e
 		}()
 	}
 
+	go func() {
+		wg.Wait()
+		close(ratingChan)
+	}()
+
 	var ratings []*ratingChange
-	for range len(handles) {
-		rating := <-ratingChan
+	for rating := range ratingChan {
 		ratings = append(ratings, rating)
 	}
 
 	return ratings, nil
-
 }
 
 func getCodeforcesInGuild(guildID string, s *discordgo.Session) (result []string, err error) {
