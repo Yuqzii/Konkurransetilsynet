@@ -55,8 +55,8 @@ type contestList struct {
 var upcoming = contestList{}
 
 func Init(s *discordgo.Session) error {
-	startContestUpdate(&upcoming, 1*time.Hour)
-	var guilds []*discordgo.Guild
+	startContestUpdate(s, &upcoming, 1*time.Hour)
+	guilds := make([]*discordgo.Guild, len(s.State.Guilds))
 	copy(guilds, s.State.Guilds) // Deep copy to ensure the same list is used for all initialization
 	if err := updatePingData(s, guilds); err != nil {
 		return fmt.Errorf("initializing contest ping data: %w", err)
