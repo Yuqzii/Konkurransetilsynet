@@ -71,7 +71,7 @@ func Init(s *discordgo.Session) error {
 func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
 	switch args[1] {
 	case "contests":
-		if err := updateUpcoming(&upcoming); err != nil {
+		if err := updateUpcoming(s, &upcoming); err != nil {
 			return err
 		}
 
@@ -103,11 +103,11 @@ func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.
 }
 
 // Start goroutine that updates upcomingContests
-func startContestUpdate(listToUpdate *contestList, interval time.Duration) {
+func startContestUpdate(s *discordgo.Session, listToUpdate *contestList, interval time.Duration) {
 	go func() {
 		for {
 			time.Sleep(interval)
-			err := updateUpcoming(listToUpdate)
+			err := updateUpcoming(s, listToUpdate)
 			if err != nil {
 				log.Println("Failed to update upcoming contests:", err)
 			}
@@ -155,6 +155,7 @@ func addContest(contests *contestList, id uint32, name string, startTime uint32)
 		ID:               id,
 		Name:             name,
 		StartTimeSeconds: startTime,
+		DurationSeconds:  60,
 	})
 
 	// Update contests to our slice containing the new element
@@ -163,8 +164,21 @@ func addContest(contests *contestList, id uint32, name string, startTime uint32)
 	contests.mu.Unlock()
 }
 
-// Updates listToUpdate with upcoming contests from the Codeforces API
-func updateUpcoming(listToUpdate *contestList) error {
+// Updates listToUpdate with upcoming contests from the Codeforces API,
+// and calls onContestEnd for any contests that have ended
+func updateUpcoming(s *discordgo.Session, listToUpdate *contestList) error {
+	// Check if any contest has ended
+	t := time.Now().Unix()
+	log.Printf("Cur time: %d", t)
+	for _, c := range listToUpdate.contests {
+		hasEnded := t >= int64(c.StartTimeSeconds)+int64(c.DurationSeconds)
+		log.Printf("End time: %d", c.StartTimeSeconds+c.DurationSeconds)
+		if hasEnded {
+			log.Printf("contest %s has ended", c.Name)
+			go onContestEnd(s)
+		}
+	}
+
 	contests, err := getContests()
 	if err != nil {
 		return err
@@ -231,4 +245,8 @@ func filterContests(contests []contest, f func(*contest) bool) (result []contest
 		}
 	}
 	return result
+}
+
+func onContestEnd(s *discordgo.Session) {
+	go sendLeaderboardMessageAll(s)
 }

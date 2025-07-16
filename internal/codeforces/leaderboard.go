@@ -55,6 +55,21 @@ func updateLeaderboardGuildData(s *discordgo.Session, guilds []*discordgo.Guild)
 	return nil
 }
 
+// @abstract	Sends a leaderboard message for every guild the bot is in.
+func sendLeaderboardMessageAll(s *discordgo.Session) {
+	guildData.mu.RLock()
+	defer guildData.mu.RUnlock()
+
+	for _, data := range guildData.data {
+		go func() {
+			err := sendLeaderboardMessage(data.guildID, data.channelID, s)
+			if err != nil {
+				log.Printf("Error sending leaderboard message to all guilds (guild %s): %s", data.guildID, err)
+			}
+		}()
+	}
+}
+
 func sendLeaderboardMessage(guildID string, channelID string, s *discordgo.Session) error {
 	ratings, err := getRatingsInGuild(guildID, s)
 	if err != nil {
