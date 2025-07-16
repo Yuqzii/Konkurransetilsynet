@@ -27,11 +27,16 @@ type ratingChange struct {
 }
 
 type lbGuildData struct {
-	channels []string // Slice of channel IDs
-	mu       sync.RWMutex
+	guildID   string
+	channelID string
 }
 
-var guildData lbGuildData
+type lbGuildDataList struct {
+	data []lbGuildData
+	mu   sync.RWMutex
+}
+
+var guildData lbGuildDataList
 
 func updateLeaderboardGuildData(s *discordgo.Session, guilds []*discordgo.Guild) error {
 	channels, err := createChannelIfNotExist(s, channelName, guilds)
@@ -39,8 +44,13 @@ func updateLeaderboardGuildData(s *discordgo.Session, guilds []*discordgo.Guild)
 		return err
 	}
 
+	var newData []lbGuildData
+	for i := range channels {
+		newData = append(newData, lbGuildData{guilds[i].ID, channels[i]})
+	}
+
 	guildData.mu.Lock()
-	guildData.channels = channels
+	guildData.data = newData
 	guildData.mu.Unlock()
 	return nil
 }
