@@ -169,12 +169,9 @@ func addContest(contests *contestList, id uint32, name string, startTime uint32)
 func updateUpcoming(s *discordgo.Session, listToUpdate *contestList) error {
 	// Check if any contest has ended
 	t := time.Now().Unix()
-	log.Printf("Cur time: %d", t)
 	for _, c := range listToUpdate.contests {
 		hasEnded := t >= int64(c.StartTimeSeconds)+int64(c.DurationSeconds)
-		log.Printf("End time: %d", c.StartTimeSeconds+c.DurationSeconds)
 		if hasEnded {
-			log.Printf("contest %s has ended", c.Name)
 			go onContestEnd(s)
 		}
 	}
