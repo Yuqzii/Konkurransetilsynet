@@ -14,6 +14,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5"
 	"github.com/yuqzii/konkurransetilsynet/internal/database"
+	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
 const (
@@ -40,7 +41,7 @@ type lbGuildDataList struct {
 var guildData lbGuildDataList
 
 func updateLeaderboardGuildData(s *discordgo.Session, guilds []*discordgo.Guild) error {
-	channels, err := createChannelIfNotExist(s, channelName, guilds)
+	channels, err := utils.CreateChannelIfNotExist(s, channelName, guilds)
 	if err != nil {
 		return err
 	}

@@ -14,7 +14,7 @@ import (
 	codeforces "github.com/yuqzii/konkurransetilsynet/internal/codeforces"
 	database "github.com/yuqzii/konkurransetilsynet/internal/database"
 	guessTheFunction "github.com/yuqzii/konkurransetilsynet/internal/guessTheFunction"
-	utilCommands "github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
+	utils "github.com/yuqzii/konkurransetilsynet/internal/utils"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -86,7 +86,7 @@ func main() {
 
 		switch command {
 		case "hello":
-			err := utilCommands.Hello(session, message)
+			err := utils.Hello(session, message)
 			if err != nil {
 				log.Fatal("Hello command failed to execute, ", err)
 			}
@@ -101,13 +101,13 @@ func main() {
 			guessTheFunction.HandleGuessTheFunctionCommands(args, session, message)
 
 		case "utils":
-			err := utilCommands.HandleUtilCommands(args, session, message)
+			err := utils.HandleUtilCommands(args, session, message)
 			if err != nil {
 				log.Println("Utility command failed:", err)
 			}
 
 		default:
-			err := utilCommands.UnknownCommand(session, message)
+			err := utils.UnknownCommand(session, message)
 			if err != nil {
 				log.Println("Unknown command failed to execute, ", err)
 			}

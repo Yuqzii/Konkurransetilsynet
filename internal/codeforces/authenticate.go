@@ -13,7 +13,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5"
 	"github.com/yuqzii/konkurransetilsynet/internal/database"
-	"github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
+	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
 const (
@@ -61,7 +61,7 @@ type problem struct {
 func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
 	// Ensure correct argument count
 	if len(args) < 3 {
-		err := utilCommands.UnknownCommand(s, m)
+		err := utils.UnknownCommand(s, m)
 		return err
 	}
 

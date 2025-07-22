@@ -1,4 +1,4 @@
-package codeforces
+package utils
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// @abstract	Creates a channel in every guild if it does not already have one
-// @return		Slice of channel IDs, one for each guild. Includes preexisting channels with the name.
-func createChannelIfNotExist(s *discordgo.Session, channelName string, guilds []*discordgo.Guild) (result []string, err error) {
+// Creates a channel in every guild if it does not already have one.
+// Returns a slice of channel IDs, one for each guild. Includes preexisting channels with the name.
+func CreateChannelIfNotExist(s *discordgo.Session, channelName string, guilds []*discordgo.Guild) (result []string, err error) {
 	for _, guild := range guilds {
 		channel, err := getChannelIDByName(channelName, guild.ID, s)
 		if err != nil {
@@ -30,7 +30,7 @@ func createChannelIfNotExist(s *discordgo.Session, channelName string, guilds []
 	return result, nil
 }
 
-// @return	ID of the channel as a string, empty ("") if there is no channel with the provided name.
+// Returns ID of the channel as a string, empty ("") if there is no channel with the provided name.
 func getChannelIDByName(name string, guildID string, s *discordgo.Session) (string, error) {
 	channels, err := s.GuildChannels(guildID)
 	if err != nil {
@@ -52,9 +52,9 @@ func getChannelIDByName(name string, guildID string, s *discordgo.Session) (stri
 	return "", nil
 }
 
-// @abstract	Creates a role in every guild if it does not already have one.
-// @return		Slice of role IDs, one for each guild. Includes preexisting roles with the name.
-func createRoleIfNotExists(s *discordgo.Session, roleName string, guilds []*discordgo.Guild) (result []string, err error) {
+// Creates a role in every guild if it does not already have one.
+// Return a slice of role IDs, one for each guild. Includes preexisting roles with the name.
+func CreateRoleIfNotExists(s *discordgo.Session, roleName string, guilds []*discordgo.Guild) (result []string, err error) {
 	for _, guild := range guilds {
 		role, err := getRoleIDByName(roleName, guild.ID, s)
 		if err != nil {
@@ -79,7 +79,7 @@ func createRoleIfNotExists(s *discordgo.Session, roleName string, guilds []*disc
 	return result, nil
 }
 
-// @return	ID of the role as a string, empty ("") if there is no role with the provided name.
+// Returns ID of the role as a string, empty ("") if there is no role with the provided name.
 func getRoleIDByName(name string, guildID string, s *discordgo.Session) (string, error) {
 	roles, err := s.GuildRoles(guildID)
 	if err != nil {

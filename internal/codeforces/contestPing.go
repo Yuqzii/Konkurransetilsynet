@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
 type pingData struct {
@@ -98,12 +99,12 @@ func updatePingData(s *discordgo.Session, guilds []*discordgo.Guild) error {
 
 func getPingData(s *discordgo.Session, guilds []*discordgo.Guild,
 	channelName string, roleName string) (result []pingData, err error) {
-	channels, err := createChannelIfNotExist(s, channelName, guilds)
+	channels, err := utils.CreateChannelIfNotExist(s, channelName, guilds)
 	if err != nil {
 		return nil, err
 	}
 
-	roles, err := createRoleIfNotExists(s, roleName, guilds)
+	roles, err := utils.CreateRoleIfNotExists(s, roleName, guilds)
 	if err != nil {
 		return nil, err
 	}
