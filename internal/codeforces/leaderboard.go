@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5"
@@ -99,6 +100,64 @@ func sendLeaderboardMessage(guildID string, channelID string, c *contest, s *dis
 	}
 
 	return nil
+}
+
+// Sends true to the returned channel when the ratings have been updated
+func startRatingUpdateCheck(c *contest, interval time.Duration) <-chan bool {
+	updatedChan := make(chan bool)
+	go func() {
+		errCnt := 0
+		const maxErrs uint8 = 3
+
+		for {
+			time.Sleep(interval)
+			updated, err := hasUpdatedRating(c)
+			if err != nil {
+				errCnt++
+				log.Printf("Failed to check Codeforces rating update (attempt %d of %d): %s", errCnt, maxErrs, err)
+				if errCnt == int(maxErrs) {
+					log.Println("Stopping Codeforces rating update check.")
+					return
+				}
+			}
+			if updated {
+				updatedChan <- true
+				close(updatedChan)
+				return
+			}
+		}
+	}()
+	return updatedChan
+}
+
+func hasUpdatedRating(c *contest) (updated bool, err error) {
+	apiStr := fmt.Sprintf("https://codeforces.com/api/contest.ratingChanges?contestId=%d", c.ID)
+	res, err := http.Get(apiStr)
+	if err != nil {
+		return false, fmt.Errorf("getting rating change from Codeforces api: %w", err)
+	}
+	defer func() {
+		err = errors.Join(err, res.Body.Close())
+	}()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return false, err
+	}
+
+	type apiReturn struct {
+		Status  string         `json:"status"`
+		Comment string         `json:"comment"`
+		Result  []ratingChange `json:"result"`
+	}
+	var api apiReturn
+	err = json.Unmarshal(body, &api)
+	if api.Status == "FAILED" {
+		return false, errors.New(api.Comment)
+	}
+
+	// Codeforces returns an empty result before the ratings have updated
+	return len(api.Result) != 0, err
 }
 
 func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, error) {

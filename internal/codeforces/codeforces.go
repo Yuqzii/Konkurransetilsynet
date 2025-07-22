@@ -51,11 +51,17 @@ type contestList struct {
 	mu       sync.RWMutex
 }
 
+const (
+	contestUpdateInterval     time.Duration = 1 * time.Hour
+	contestPingCheckInterval  time.Duration = 1 * time.Minute
+	ratingUpdateCheckInterval time.Duration = 30 * time.Minute
+)
+
 // Only access this variable when passing as a argument from a top-level function (Init and HandleCommands)
 var upcoming = contestList{}
 
 func Init(s *discordgo.Session) error {
-	startContestUpdate(s, &upcoming, 1*time.Hour)
+	startContestUpdate(s, &upcoming, contestUpdateInterval)
 	guilds := make([]*discordgo.Guild, len(s.State.Guilds))
 	copy(guilds, s.State.Guilds) // Deep copy to ensure the same list is used for all initialization
 	if err := updatePingData(s, guilds); err != nil {
@@ -64,7 +70,7 @@ func Init(s *discordgo.Session) error {
 	if err := updateLeaderboardGuildData(s, guilds); err != nil {
 		return fmt.Errorf("initializing leaderboard guild data: %w", err)
 	}
-	startContestPingCheck(&upcoming, 1*time.Minute, s)
+	startContestPingCheck(&upcoming, contestPingCheckInterval, s)
 	return nil
 }
 
@@ -241,5 +247,10 @@ func filterContests(contests []contest, f func(*contest) bool) (result []contest
 }
 
 func onContestEnd(s *discordgo.Session, c contest) {
-	go sendLeaderboardMessageAll(s, &c)
+	ratingUpdated := startRatingUpdateCheck(&c, ratingUpdateCheckInterval)
+	for updated := range ratingUpdated {
+		if updated {
+			sendLeaderboardMessageAll(s, &c)
+		}
+	}
 }
