@@ -56,13 +56,13 @@ func updateLeaderboardGuildData(s *discordgo.Session, guilds []*discordgo.Guild)
 }
 
 // @abstract	Sends a leaderboard message for every guild the bot is in.
-func sendLeaderboardMessageAll(s *discordgo.Session) {
+func sendLeaderboardMessageAll(s *discordgo.Session, c *contest) {
 	guildData.mu.RLock()
 	defer guildData.mu.RUnlock()
 
 	for _, data := range guildData.data {
 		go func() {
-			err := sendLeaderboardMessage(data.guildID, data.channelID, s)
+			err := sendLeaderboardMessage(data.guildID, data.channelID, c, s)
 			if err != nil {
 				log.Printf("Error sending leaderboard message to all guilds (guild %s): %s", data.guildID, err)
 			}
@@ -70,7 +70,7 @@ func sendLeaderboardMessageAll(s *discordgo.Session) {
 	}
 }
 
-func sendLeaderboardMessage(guildID string, channelID string, s *discordgo.Session) error {
+func sendLeaderboardMessage(guildID string, channelID string, c *contest, s *discordgo.Session) error {
 	ratings, err := getRatingsInGuild(guildID, s)
 	if err != nil {
 		return fmt.Errorf("getting ratings in guild %s: %w", guildID, err)
@@ -80,9 +80,13 @@ func sendLeaderboardMessage(guildID string, channelID string, s *discordgo.Sessi
 		return ratings[i].NewRating > ratings[j].NewRating
 	})
 
-	messageStr := ""
+	guild, err := s.State.Guild(guildID)
+	if err != nil {
+		return fmt.Errorf("getting guild of ID %s: %w", guildID, err)
+	}
+	messageStr := fmt.Sprintf("## %s Codeforces leaderboard after [%s](%s)", guild.Name, c.Name, c.WebsiteURL)
 	for i, rating := range ratings {
-		messageStr += fmt.Sprintf("%d. <@%s> (%s): %d\n", i+1, rating.discordID, rating.Handle, rating.NewRating)
+		messageStr += fmt.Sprintf("\n%d. <@%s> (%s): %d", i+1, rating.discordID, rating.Handle, rating.NewRating)
 	}
 
 	msgData := discordgo.MessageSend{

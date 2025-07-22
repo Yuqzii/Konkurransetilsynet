@@ -89,11 +89,6 @@ func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.
 		if err != nil {
 			return fmt.Errorf("authentication command failed: %w", err)
 		}
-	case "leaderboard":
-		err := sendLeaderboardMessage(m.GuildID, m.ChannelID, s)
-		if err != nil {
-			return fmt.Errorf("sending leaderboard message: %w", err)
-		}
 	default:
 		err := utilCommands.UnknownCommand(s, m)
 		return err
@@ -156,6 +151,7 @@ func addContest(contests *contestList, id uint32, name string, startTime uint32)
 		Name:             name,
 		StartTimeSeconds: startTime,
 		DurationSeconds:  60,
+		WebsiteURL:       "https://codeforces.com/contests",
 	})
 
 	// Update contests to our slice containing the new element
@@ -172,7 +168,7 @@ func updateUpcoming(s *discordgo.Session, listToUpdate *contestList) error {
 	for _, c := range listToUpdate.contests {
 		hasEnded := t >= int64(c.StartTimeSeconds)+int64(c.DurationSeconds)
 		if hasEnded {
-			go onContestEnd(s)
+			go onContestEnd(s, c)
 		}
 	}
 
@@ -244,6 +240,6 @@ func filterContests(contests []contest, f func(*contest) bool) (result []contest
 	return result
 }
 
-func onContestEnd(s *discordgo.Session) {
-	go sendLeaderboardMessageAll(s)
+func onContestEnd(s *discordgo.Session, c contest) {
+	go sendLeaderboardMessageAll(s, &c)
 }
