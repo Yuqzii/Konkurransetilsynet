@@ -103,7 +103,7 @@ func UpdateCodeforcesUser(discID, handle string) error {
 	return nil
 }
 
-func GetConnectedCodeforces(discID, handle string) (connectedHandle string, err error) {
+func GetConnectedCodeforces(discID string) (connectedHandle string, err error) {
 	err = dbconn.QueryRow(context.Background(),
 		"SELECT codeforces_handle FROM user_data WHERE discord_id=$1", discID).Scan(&connectedHandle)
 	if err != nil {

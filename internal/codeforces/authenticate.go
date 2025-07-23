@@ -13,7 +13,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5"
 	"github.com/yuqzii/konkurransetilsynet/internal/database"
-	"github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
+	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
 const (
@@ -61,14 +61,14 @@ type problem struct {
 func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
 	// Ensure correct argument count
 	if len(args) < 3 {
-		err := utilCommands.UnknownCommand(s, m)
+		err := utils.UnknownCommand(s, m)
 		return err
 	}
 
 	log.Printf("Received Codeforces authenticate for user with handle '%s' from %s (%s).",
 		args[2], m.Author.ID, m.Author.Username)
 
-	connectedHandle, err := database.GetConnectedCodeforces(m.Author.ID, args[2])
+	connectedHandle, err := database.GetConnectedCodeforces(m.Author.ID)
 	// ErrNoRows expected when user is not already connected
 	if err != pgx.ErrNoRows {
 		if err != nil {
