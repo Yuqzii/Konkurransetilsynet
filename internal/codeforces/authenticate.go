@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -154,8 +155,8 @@ func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreat
 		return err
 	}
 
-	const debug bool = true
-	if debug {
+	debug := os.Getenv("DEBUG")
+	if debug == "true" {
 		var testProblem = &problem{
 			ContestID: 1627,
 			Index:     "C",

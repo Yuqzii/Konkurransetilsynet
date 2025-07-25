@@ -17,6 +17,7 @@ services:
     environment:
       - TOKEN=${TOKEN}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DEBUG=${DEBUG}
     profiles: [dev]
     depends_on:
       db:
