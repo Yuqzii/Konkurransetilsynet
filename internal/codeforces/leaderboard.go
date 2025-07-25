@@ -21,6 +21,12 @@ const (
 	channelName string = "cf-leaderboard"
 )
 
+type ratingChangeAPIReturn struct {
+	Status  string         `json:"status"`
+	Comment string         `json:"comment"`
+	Result  []ratingChange `json:"result"`
+}
+
 type ratingChange struct {
 	Handle    string `json:"handle"`
 	OldRating int    `json:"oldRating"`
@@ -146,12 +152,7 @@ func hasUpdatedRating(c *contest) (updated bool, err error) {
 		return false, err
 	}
 
-	type apiReturn struct {
-		Status  string         `json:"status"`
-		Comment string         `json:"comment"`
-		Result  []ratingChange `json:"result"`
-	}
-	var api apiReturn
+	var api ratingChangeAPIReturn
 	err = json.Unmarshal(body, &api)
 	if api.Status == "FAILED" {
 		return false, errors.New(api.Comment)
@@ -254,12 +255,7 @@ func getRating(handle string) (rating *ratingChange, err error) {
 		return nil, err
 	}
 
-	type apiReturn struct {
-		Status  string         `json:"status"`
-		Comment string         `json:"comment"`
-		Result  []ratingChange `json:"result"`
-	}
-	var api apiReturn
+	var api ratingChangeAPIReturn
 	err = json.Unmarshal(body, &api)
 	if api.Status == "FAILED" {
 		return nil, errors.New(api.Comment)
