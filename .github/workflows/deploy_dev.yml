@@ -19,13 +19,7 @@ jobs:
           environment: "development"
           onlyRemoveDeployments: true
 
-      - name: Stop previously running bot
-        run: docker stop konkurransetilsynet-dev
-
-      - name: Remove previous bot
-        run: docker rm konkurransetilsynet-dev
-
       - name: Deploy bot
-        run: docker compose -f docker-compose_dev.yml up -d --build
+        run: docker compose --profile dev up -d --build
         env:
           TOKEN: ${{ secrets.TOKEN }}

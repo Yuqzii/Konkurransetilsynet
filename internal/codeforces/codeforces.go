@@ -3,6 +3,7 @@ package codeforces
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -13,7 +14,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	utilCommands "github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
+	utils "github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
 // The return object from the Codeforces API
@@ -50,22 +51,33 @@ type contestList struct {
 	mu       sync.RWMutex
 }
 
+const (
+	contestUpdateInterval     time.Duration = 1 * time.Hour
+	contestPingCheckInterval  time.Duration = 1 * time.Minute
+	ratingUpdateCheckInterval time.Duration = 30 * time.Minute
+)
+
 // Only access this variable when passing as a argument from a top-level function (Init and HandleCommands)
 var upcoming = contestList{}
 
 func Init(s *discordgo.Session) error {
-	startContestUpdate(&upcoming, 1*time.Hour)
-	if err := updatePingData(s); err != nil {
-		return err
+	startContestUpdate(s, &upcoming, contestUpdateInterval)
+	guilds := make([]*discordgo.Guild, len(s.State.Guilds))
+	copy(guilds, s.State.Guilds) // Deep copy to ensure the same list is used for all initialization
+	if err := updatePingData(s, guilds); err != nil {
+		return fmt.Errorf("initializing contest ping data: %w", err)
 	}
-	startContestPingCheck(&upcoming, 1*time.Minute, s)
+	if err := updateLeaderboardGuildData(s, guilds); err != nil {
+		return fmt.Errorf("initializing leaderboard guild data: %w", err)
+	}
+	startContestPingCheck(&upcoming, contestPingCheckInterval, s)
 	return nil
 }
 
 func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
 	switch args[1] {
 	case "contests":
-		if err := updateUpcoming(&upcoming); err != nil {
+		if err := updateUpcoming(s, &upcoming); err != nil {
 			return err
 		}
 
@@ -78,8 +90,13 @@ func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.
 		if err != nil {
 			return errors.Join(errors.New("adding debug contest failed,"), err)
 		}
+	case "authenticate":
+		err := authCommand(args, s, m)
+		if err != nil {
+			return fmt.Errorf("authentication command failed: %w", err)
+		}
 	default:
-		err := utilCommands.UnknownCommand(s, m)
+		err := utils.UnknownCommand(s, m)
 		return err
 	}
 
@@ -87,11 +104,11 @@ func HandleCodeforcesCommands(args []string, s *discordgo.Session, m *discordgo.
 }
 
 // Start goroutine that updates upcomingContests
-func startContestUpdate(listToUpdate *contestList, interval time.Duration) {
+func startContestUpdate(s *discordgo.Session, listToUpdate *contestList, interval time.Duration) {
 	go func() {
 		for {
 			time.Sleep(interval)
-			err := updateUpcoming(listToUpdate)
+			err := updateUpcoming(s, listToUpdate)
 			if err != nil {
 				log.Println("Failed to update upcoming contests:", err)
 			}
@@ -101,20 +118,20 @@ func startContestUpdate(listToUpdate *contestList, interval time.Duration) {
 
 func addDebugContestCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
 	if len(args) != 5 {
-		err := utilCommands.UnknownCommand(s, m)
+		err := utils.UnknownCommand(s, m)
 		return err
 	}
 
 	startTime64, err := strconv.ParseUint(args[3], 10, 32)
 	if err != nil {
-		err = errors.Join(err, utilCommands.UnknownCommand(s, m))
+		err = errors.Join(err, utils.UnknownCommand(s, m))
 		return err
 	}
 	startTime := uint32(startTime64)
 
 	id64, err := strconv.ParseUint(args[4], 10, 32)
 	if err != nil {
-		err = errors.Join(err, utilCommands.UnknownCommand(s, m))
+		err = errors.Join(err, utils.UnknownCommand(s, m))
 		return err
 	}
 	id := uint32(id64)
@@ -139,6 +156,8 @@ func addContest(contests *contestList, id uint32, name string, startTime uint32)
 		ID:               id,
 		Name:             name,
 		StartTimeSeconds: startTime,
+		DurationSeconds:  60,
+		WebsiteURL:       "https://codeforces.com/contests",
 	})
 
 	// Update contests to our slice containing the new element
@@ -147,8 +166,18 @@ func addContest(contests *contestList, id uint32, name string, startTime uint32)
 	contests.mu.Unlock()
 }
 
-// Updates listToUpdate with upcoming contests from the Codeforces API
-func updateUpcoming(listToUpdate *contestList) error {
+// Updates listToUpdate with upcoming contests from the Codeforces API,
+// and calls onContestEnd for any contests that have ended
+func updateUpcoming(s *discordgo.Session, listToUpdate *contestList) error {
+	// Check if any contest has ended
+	t := time.Now().Unix()
+	for _, c := range listToUpdate.contests {
+		hasEnded := t >= int64(c.StartTimeSeconds)+int64(c.DurationSeconds)
+		if hasEnded {
+			go onContestEnd(s, c)
+		}
+	}
+
 	contests, err := getContests()
 	if err != nil {
 		return err
@@ -215,4 +244,13 @@ func filterContests(contests []contest, f func(*contest) bool) (result []contest
 		}
 	}
 	return result
+}
+
+func onContestEnd(s *discordgo.Session, c contest) {
+	ratingUpdated := startRatingUpdateCheck(&c, ratingUpdateCheckInterval)
+	for updated := range ratingUpdated {
+		if updated {
+			sendLeaderboardMessageAll(s, &c)
+		}
+	}
 }
