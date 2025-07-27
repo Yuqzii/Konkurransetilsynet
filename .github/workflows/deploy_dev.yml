@@ -23,3 +23,4 @@ jobs:
         run: docker compose --profile dev up -d --build
         env:
           TOKEN: ${{ secrets.TOKEN }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
