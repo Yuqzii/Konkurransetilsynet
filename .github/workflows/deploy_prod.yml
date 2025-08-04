@@ -13,13 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Delete previous deployments
-        uses: strumwolf/delete-deployment-environment@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          environment: "production"
-          onlyRemoveDeployments: true
-
       - name: Deploy bot
         run: docker compose --profile prod up -d --build
         env:
