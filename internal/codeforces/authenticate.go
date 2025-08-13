@@ -24,45 +24,10 @@ const (
 	maxProblemRating       = 1500
 )
 
-type submissionList struct {
-	Submissions []submission `json:"result"`
-	Status      string       `json:"status"`
-	Comment     string       `json:"comment,omitempty"`
-}
-
-type submission struct {
-	ID                  int   `json:"id"`
-	ContestID           int   `json:"contestId"`
-	CreationTimeSeconds int64 `json:"creationTimeSeconds"`
-	RelativeTimeSeconds int   `json:"relativeTimeSeconds"`
-	Problem             struct {
-		ContestID int    `json:"contestId"`
-		Index     string `json:"index"`
-		Name      string `json:"name"`
-	}
-	Verdict string `json:"verdict"`
-}
-
-type problemList struct {
-	Result struct {
-		Problems []problem `json:"problems"`
-	} `json:"result"`
-	Status  string `json:"status"`
-	Comment string `json:"comment,omitempty"`
-}
-
-type problem struct {
-	ContestID int    `json:"contestId"`
-	Index     string `json:"index"`
-	Name      string `json:"name"`
-	Type      string `json:"type"`
-	Rating    int    `json:"rating,omitempty"`
-}
-
-func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
+func (s *Service) authCommand(args []string, m *discordgo.MessageCreate) error {
 	// Ensure correct argument count
 	if len(args) < 3 {
-		err := utils.UnknownCommand(s, m)
+		err := utils.UnknownCommand(s.discord, m)
 		return err
 	}
 
@@ -75,7 +40,7 @@ func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate
 		if err != nil {
 			log.Println("Failed to check in database:", err)
 		} else if connectedHandle != "" {
-			err = onAlreadyConnected(connectedHandle, s, m)
+			err = onAlreadyConnected(connectedHandle, s.discord, m)
 			if err != nil {
 				log.Println("Failed to send already connected message:", err)
 			}
@@ -89,22 +54,22 @@ func authCommand(args []string, s *discordgo.Session, m *discordgo.MessageCreate
 	}
 	if !userExists {
 		log.Printf("Codeforces user with handle '%s' does not exist.", args[2])
-		err = onUserNotExist(args[2], s, m)
+		err = onUserNotExist(args[2], s.discord, m)
 		return err
 	}
 
-	err = authenticate(args[2], s, m)
+	err = authenticate(args[2], s.discord, m)
 	if err != nil {
 		log.Println("Authentication failed:", err)
 	}
 	return nil
 }
 
-func onAlreadyConnected(handle string, s *discordgo.Session, m *discordgo.MessageCreate) error {
+func onAlreadyConnected(handle string, disc *discordgo.Session, m *discordgo.MessageCreate) error {
 	log.Printf("Discord user %s (%s) is already connected to Codeforces user '%s'.",
 		m.Author.ID, m.Author.Username, handle)
 	msgStr := fmt.Sprintf("<@%s> is already connected to the Codeforces user '%s'.", m.Author.ID, handle)
-	_, err := s.ChannelMessageSend(m.ChannelID, msgStr)
+	_, err := disc.ChannelMessageSend(m.ChannelID, msgStr)
 	return err
 }
 
@@ -134,8 +99,8 @@ func checkUserExistence(handle string) (exists bool, err error) {
 	return exists, err
 }
 
-func onUserNotExist(handle string, s *discordgo.Session, m *discordgo.MessageCreate) error {
-	_, err := s.ChannelMessageSend(m.ChannelID,
+func onUserNotExist(handle string, disc *discordgo.Session, m *discordgo.MessageCreate) error {
+	_, err := disc.ChannelMessageSend(m.ChannelID,
 		fmt.Sprintf("Could not find a Codeforces user with the name '%s', are you sure you spelled it correctly?",
 			handle))
 	return err
@@ -280,33 +245,6 @@ func getRandomProblem(problems []problem) (*problem, error) {
 	return prob, nil
 }
 
-// Returns all problems from the Codeforces API
-func getProblems() (problems []problem, err error) {
-	res, err := http.Get("https://codeforces.com/api/problemset.problems")
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err == nil {
-			err = res.Body.Close()
-		}
-	}()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var apiStruct problemList
-	err = json.Unmarshal(body, &apiStruct)
-
-	if apiStruct.Status == "FAILED" {
-		return nil, errors.New(apiStruct.Comment)
-	}
-
-	return apiStruct.Result.Problems, err
-}
-
 func startAuthCheck(handle string, contID int, problemIdx string, timeoutSeconds int, resultChan chan<- bool) {
 	startTime := time.Now().Unix()
 	log.Printf("Starting Codeforces authentication check for user with handle '%s'.", handle)
@@ -348,29 +286,4 @@ func checkSubmissions(subs []submission, startTime int64, contID int, problemIdx
 		}
 	}
 	return false
-}
-
-func getSubmissions(handle string, count int) (submissions []submission, err error) {
-	apiStr := fmt.Sprintf("https://codeforces.com/api/user.status?handle=%s&from=1&count=%d", handle, count)
-	res, err := http.Get(apiStr)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		err = errors.Join(err, res.Body.Close())
-	}()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var apiStruct submissionList
-	err = json.Unmarshal(body, &apiStruct)
-
-	if apiStruct.Status == "FAILED" {
-		return nil, errors.New(apiStruct.Comment)
-	}
-
-	return apiStruct.Submissions, err
 }

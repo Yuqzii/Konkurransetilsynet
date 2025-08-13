@@ -16,7 +16,7 @@ const (
 	dbName = "bot_data"
 )
 
-var dbconn *pgxpool.Pool
+var DBConn *pgxpool.Pool
 
 // Tries to initialize the dbconn variable with a connection from connectToDatabase().
 // Returns a connection to the db which should be closed when the application exits.
@@ -25,7 +25,7 @@ func Init() (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
-	dbconn = db
+	DBConn = db
 	return db, nil
 }
 
@@ -48,7 +48,7 @@ func connectToDatabase() (*pgxpool.Pool, error) {
 
 func DiscordIDExists(discID string) (bool, error) {
 	var dbDiscID string
-	err := dbconn.QueryRow(context.Background(),
+	err := DBConn.QueryRow(context.Background(),
 		"SELECT discord_id FROM user_data WHERE discord_id=$1;", discID).Scan(&dbDiscID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -62,7 +62,7 @@ func DiscordIDExists(discID string) (bool, error) {
 }
 
 func AddCodeforcesUser(discID, handle string) error {
-	tx, err := dbconn.Begin(context.Background())
+	tx, err := DBConn.Begin(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
@@ -83,7 +83,7 @@ func AddCodeforcesUser(discID, handle string) error {
 }
 
 func UpdateCodeforcesUser(discID, handle string) error {
-	tx, err := dbconn.Begin(context.Background())
+	tx, err := DBConn.Begin(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
@@ -104,7 +104,7 @@ func UpdateCodeforcesUser(discID, handle string) error {
 }
 
 func GetConnectedCodeforces(discID string) (connectedHandle string, err error) {
-	err = dbconn.QueryRow(context.Background(),
+	err = DBConn.QueryRow(context.Background(),
 		"SELECT codeforces_handle FROM user_data WHERE discord_id=$1", discID).Scan(&connectedHandle)
 	if err != nil {
 		return "", err

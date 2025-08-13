@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bwmarrin/discordgo"
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
@@ -22,17 +21,18 @@ type pingDataList struct {
 	mu   sync.RWMutex
 }
 
-var pingList = pingDataList{}
-var pingedIDs = make(map[uint32]struct{}) // Set for pinged contests
-
-const pingTime uint32 = 1 * 3600 // 1 hour
+const (
+	pingTime        uint32 = 1 * 3600 // 1 hour
+	pingChannelName string = "contest-pings"
+	pingRoleName    string = "Contest Ping"
+)
 
 // Start goroutine that checks whether it should issue a ping for upcoming contests
-func startContestPingCheck(contests *contestList, interval time.Duration, session *discordgo.Session) {
+func (s *Service) startContestPingCheck(interval time.Duration) {
 	go func() {
 		for {
 			time.Sleep(interval)
-			err := checkContestPing(contests, session)
+			err := s.checkContestPing()
 			if err != nil {
 				log.Println("Automatic contest ping failed:", err)
 			}
@@ -40,16 +40,16 @@ func startContestPingCheck(contests *contestList, interval time.Duration, sessio
 	}()
 }
 
-func checkContestPing(contests *contestList, session *discordgo.Session) error {
-	contests.mu.RLock()
-	defer contests.mu.RUnlock()
+func (s *Service) checkContestPing() error {
+	s.contestsMu.RLock()
+	defer s.contestsMu.RUnlock()
 
 	curTime := uint32(time.Now().Unix())
-	for i, contest := range contests.contests {
-		shouldPing := contest.StartTimeSeconds-curTime <= pingTime
-		_, isPinged := pingedIDs[contest.ID]
+	for i := range s.contests {
+		shouldPing := s.contests[i].StartTimeSeconds-curTime <= pingTime
+		_, isPinged := s.pingedIDs[s.contests[i].ID]
 		if shouldPing && !isPinged {
-			err := contestPing(contests, i, session)
+			err := s.pingContest(i)
 			if err != nil {
 				return errors.Join(errors.New("failed to ping contest,"), err)
 			}
@@ -63,20 +63,17 @@ func checkContestPing(contests *contestList, session *discordgo.Session) error {
 	return nil
 }
 
-func contestPing(contests *contestList, idx int, session *discordgo.Session) error {
-	contests.mu.RLock()
-	defer contests.mu.RUnlock()
-
+func (s *Service) pingContest(idx int) error {
+	s.pingMu.RLock()
+	defer s.pingMu.RUnlock()
 	// Add contest ID to set
-	pingedIDs[contests.contests[idx].ID] = struct{}{}
+	s.pingedIDs[s.contests[idx].ID] = struct{}{}
 
-	pingList.mu.RLock()
-	defer pingList.mu.RUnlock()
 	// Issue ping for every ping channel (essentially for every server)
-	for _, data := range pingList.list {
-		_, err := session.ChannelMessageSend(data.channel,
+	for _, data := range s.pingData {
+		_, err := s.discord.ChannelMessageSend(data.channel,
 			fmt.Sprintf("<@&%s> **%s** is starting <t:%d:R>",
-				data.role, contests.contests[idx].Name, contests.contests[idx].StartTimeSeconds))
+				data.role, s.contests[idx].Name, s.contests[idx].StartTimeSeconds))
 		if err != nil {
 			return err
 		}
@@ -85,33 +82,24 @@ func contestPing(contests *contestList, idx int, session *discordgo.Session) err
 	return nil
 }
 
-func updatePingData(s *discordgo.Session, guilds []*discordgo.Guild) error {
-	data, err := getPingData(s, guilds, "contest-pings", "Contest Ping")
+func (s *Service) updatePingData() error {
+	channels, err := utils.CreateChannelIfNotExist(s.discord, pingChannelName, s.guilds)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find ping channel: %w", err)
 	}
 
-	pingList.mu.Lock()
-	pingList.list = data
-	pingList.mu.Unlock()
+	roles, err := utils.CreateRoleIfNotExists(s.discord, pingRoleName, s.guilds)
+	if err != nil {
+		return fmt.Errorf("failed to find ping role: %w", err)
+	}
+
+	var newList []pingData
+	for i := range s.guilds {
+		newList = append(newList, pingData{channel: channels[i], role: roles[i]})
+	}
+
+	s.pingMu.Lock()
+	s.pingData = newList
+	s.pingMu.Unlock()
 	return nil
-}
-
-func getPingData(s *discordgo.Session, guilds []*discordgo.Guild,
-	channelName string, roleName string) (result []pingData, err error) {
-	channels, err := utils.CreateChannelIfNotExist(s, channelName, guilds)
-	if err != nil {
-		return nil, err
-	}
-
-	roles, err := utils.CreateRoleIfNotExists(s, roleName, guilds)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range len(guilds) {
-		result = append(result, pingData{channels[i], roles[i]})
-	}
-
-	return result, nil
 }

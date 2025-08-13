@@ -55,7 +55,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Could not open session with token ", err)
 	}
-
 	// Close session when application exits
 	defer func() {
 		err = session.Close()
@@ -64,9 +63,9 @@ func main() {
 		}
 	}()
 
-	err = codeforces.Init(session)
+	cf, err := codeforces.New(database.DBConn, session, session.State.Guilds)
 	if err != nil {
-		log.Fatal("Could not initialize Codeforces package:", err)
+		log.Fatal("Failed to create Codeforces service:", err)
 	}
 
 	session.AddHandler(func(session *discordgo.Session, message *discordgo.MessageCreate) {
@@ -92,7 +91,7 @@ func main() {
 			}
 
 		case "cf":
-			err := codeforces.HandleCodeforcesCommands(args, session, message)
+			err := cf.HandleCommand(args, message)
 			if err != nil {
 				log.Println("Codeforces command failed:", err)
 			}
