@@ -64,7 +64,7 @@ type ratingChangeAPIReturn struct {
 }
 
 // Gets all contests from the Codeforces API
-func getContests() (contests []contest, err error) {
+func getContests() (contests []*contest, err error) {
 	res, err := http.Get("https://codeforces.com/api/contest.list")
 	if err != nil {
 		return nil, err
@@ -81,9 +81,9 @@ func getContests() (contests []contest, err error) {
 	}
 
 	var contestList struct {
-		Status   string    `json:"status"`
-		Contests []contest `json:"result"`
-		Comment  string    `json:"comment,omitempty"`
+		Status   string     `json:"status"`
+		Contests []*contest `json:"result"`
+		Comment  string     `json:"comment,omitempty"`
 	}
 	err = json.Unmarshal(body, &contestList)
 

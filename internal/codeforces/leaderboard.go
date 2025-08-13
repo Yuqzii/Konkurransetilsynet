@@ -29,7 +29,7 @@ type lbGuildDataList struct {
 }
 
 // @abstract	Sends a leaderboard message for every guild the bot is in.
-func (s *Service) sendLeaderboardMessageAll(c *contest) {
+func (s *Handler) sendLeaderboardMessageAll(c *contest) {
 	s.lbMu.RLock()
 	defer s.lbMu.RUnlock()
 
@@ -44,7 +44,7 @@ func (s *Service) sendLeaderboardMessageAll(c *contest) {
 	}
 }
 
-func (s *Service) sendLeaderboardMessage(idx int, c *contest) error {
+func (s *Handler) sendLeaderboardMessage(idx int, c *contest) error {
 	guildID := s.lbGuildData[idx].guildID
 	channelID := s.lbGuildData[idx].channelID
 
@@ -79,7 +79,7 @@ func (s *Service) sendLeaderboardMessage(idx int, c *contest) error {
 }
 
 // Sends true to the returned channel when the ratings have been updated
-func (s *Service) startRatingUpdateCheck(c *contest, interval time.Duration) <-chan bool {
+func (s *Handler) startRatingUpdateCheck(c *contest, interval time.Duration) <-chan bool {
 	updatedChan := make(chan bool)
 	go func() {
 		errCnt := 0
@@ -184,7 +184,7 @@ func getCodeforcesInGuild(guildID string, s *discordgo.Session) (result []string
 	return result, discordIDs, nil
 }
 
-func (s *Service) updateLeaderboardGuildData() error {
+func (s *Handler) updateLeaderboardGuildData() error {
 	channels, err := utils.CreateChannelIfNotExist(s.discord, lbChannelName, s.guilds)
 	if err != nil {
 		return err

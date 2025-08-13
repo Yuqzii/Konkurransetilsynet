@@ -7,13 +7,49 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
-func (s *Service) listContests(m *discordgo.MessageCreate) error {
+type contestEndListener interface {
+	onContestEnd(c *contest)
+}
+
+type contestProvider interface {
+	getContests() []*contest
+}
+
+type contestService struct {
+	discord   *discordgo.Session
+	contests  []*contest
+	mu        sync.RWMutex
+	listeners []contestEndListener
+}
+
+func newContestService(discord *discordgo.Session) *contestService {
+	return &contestService{discord: discord}
+}
+
+func (s *contestService) StartContestUpdate(interval time.Duration) {
+	go func() {
+		for {
+			time.Sleep(interval)
+			err := s.updateContests()
+			if err != nil {
+				log.Println("Failed to update upcoming contests:", err)
+			}
+		}
+	}()
+}
+
+func (s *contestService) addListener(l contestEndListener) {
+	s.listeners = append(s.listeners, l)
+}
+
+func (s *contestService) listContests(m *discordgo.MessageCreate) error {
 	embed := discordgo.MessageEmbed{
 		Title:     "Upcoming Codeforces contests",
 		URL:       "https://codeforces.com/contests",
@@ -22,7 +58,7 @@ func (s *Service) listContests(m *discordgo.MessageCreate) error {
 	}
 
 	// Add embed for each contest
-	s.contestsMu.RLock()
+	s.mu.RLock()
 	for _, contest := range s.contests {
 		f := &discordgo.MessageEmbedField{
 			Name:   contest.Name,
@@ -38,33 +74,21 @@ func (s *Service) listContests(m *discordgo.MessageCreate) error {
 
 		embed.Fields = append(embed.Fields, f)
 	}
-	s.contestsMu.RUnlock()
+	s.mu.RUnlock()
 
 	_, err := s.discord.ChannelMessageSendEmbed(m.ChannelID, &embed)
 	return err
 }
 
-func (s *Service) StartContestUpdate(interval time.Duration) {
-	go func() {
-		for {
-			time.Sleep(interval)
-			err := s.updateUpcoming()
-			if err != nil {
-				log.Println("Failed to update upcoming contests:", err)
-			}
-		}
-	}()
-}
-
 // Updates Service.contests with upcoming contests from the Codeforces API.
 // Calls onContestEnd for any contests that have ended.
-func (s *Service) updateUpcoming() error {
+func (s *contestService) updateContests() error {
 	// Check if any contest has ended.
 	t := time.Now().Unix()
 	for _, c := range s.contests {
 		hasEnded := t >= int64(c.StartTimeSeconds)+int64(c.DurationSeconds)
 		if hasEnded {
-			go s.onContestEnd(c)
+			go s.onContestEnd(*c)
 		}
 	}
 
@@ -78,26 +102,35 @@ func (s *Service) updateUpcoming() error {
 		return err
 	}
 
-	s.contestsMu.Lock()
+	s.mu.Lock()
 	s.contests = contests
-	s.contestsMu.Unlock()
+	s.mu.Unlock()
 	return nil
 }
 
-func (s *Service) addContest(name string, id uint32, startTime uint32) {
+func (s *contestService) getContests() []*contest {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	res := make([]*contest, len(s.contests))
+	copy(res, s.contests)
+	return res
+}
+
+func (s *contestService) addContest(name string, id uint32, startTime uint32) {
 	// Copy contests into new slice to avoid concurrency issues when writing
-	s.contestsMu.RLock()
-	newContests := make([]contest, len(s.contests))
+	s.mu.RLock()
+	newContests := make([]*contest, len(s.contests))
 	copy(newContests, s.contests)
 
-	s.contestsMu.RUnlock()
+	s.mu.RUnlock()
 
 	// Find position to insert into slice to maintain sorted order
 	i := sort.Search(len(newContests), func(i int) bool {
 		return newContests[i].StartTimeSeconds >= startTime
 	})
 	// Insert new contest into slice at the correct position
-	newContests = slices.Insert(newContests, i, contest{
+	newContests = slices.Insert(newContests, i, &contest{
 		ID:               id,
 		Name:             name,
 		StartTimeSeconds: startTime,
@@ -106,12 +139,12 @@ func (s *Service) addContest(name string, id uint32, startTime uint32) {
 	})
 
 	// Update contests to our slice containing the new element
-	s.contestsMu.Lock()
+	s.mu.Lock()
 	s.contests = newContests
-	s.contestsMu.Unlock()
+	s.mu.Unlock()
 }
 
-func (s *Service) addDebugContest(args []string, m *discordgo.MessageCreate) error {
+func (s *contestService) addDebugContest(args []string, m *discordgo.MessageCreate) error {
 	if len(args) != 5 {
 		err := utils.UnknownCommand(s.discord, m)
 		return err
@@ -136,11 +169,13 @@ func (s *Service) addDebugContest(args []string, m *discordgo.MessageCreate) err
 	id := uint32(id64)
 
 	s.addContest(name, id, startTime)
+
+	s.listContests(m)
 	return nil
 }
 
 // Filters out contests that have ended and sorts the result
-func filterUpcoming(contests []contest) ([]contest, error) {
+func filterUpcoming(contests []*contest) ([]*contest, error) {
 	// Find all current or future contests
 	filtered := filterContests(contests, func(contest *contest) bool {
 		return contest.Phase == "BEFORE" || contest.Phase == "CODING"
@@ -155,20 +190,17 @@ func filterUpcoming(contests []contest) ([]contest, error) {
 }
 
 // Filters contests based on the f function argument
-func filterContests(contests []contest, f func(*contest) bool) (result []contest) {
+func filterContests(contests []*contest, f func(*contest) bool) (result []*contest) {
 	for _, contest := range contests {
-		if f(&contest) {
+		if f(contest) {
 			result = append(result, contest)
 		}
 	}
 	return result
 }
 
-func (s *Service) onContestEnd(c contest) {
-	ratingUpdated := s.startRatingUpdateCheck(&c, ratingUpdateCheckInterval)
-	for updated := range ratingUpdated {
-		if updated {
-			s.sendLeaderboardMessageAll(&c)
-		}
+func (s *contestService) onContestEnd(c contest) {
+	for _, l := range s.listeners {
+		l.onContestEnd(&c)
 	}
 }

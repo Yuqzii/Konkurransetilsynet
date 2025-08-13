@@ -24,7 +24,7 @@ const (
 	maxProblemRating       = 1500
 )
 
-func (s *Service) authCommand(args []string, m *discordgo.MessageCreate) error {
+func (s *Handler) authCommand(args []string, m *discordgo.MessageCreate) error {
 	// Ensure correct argument count
 	if len(args) < 3 {
 		err := utils.UnknownCommand(s.discord, m)

@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 	"unicode/utf8"
 
 	codeforces "github.com/yuqzii/konkurransetilsynet/internal/codeforces"
@@ -19,7 +20,11 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-const prefix string = "!"
+const (
+	prefix                   string        = "!"
+	contestUpdateInterval    time.Duration = 1 * time.Hour
+	contestPingCheckInterval time.Duration = 1 * time.Minute
+)
 
 func main() {
 	logFile, err := enableLogFile()
@@ -65,8 +70,10 @@ func main() {
 
 	cf, err := codeforces.New(database.DBConn, session, session.State.Guilds)
 	if err != nil {
-		log.Fatal("Failed to create Codeforces service:", err)
+		log.Fatal("Failed to create Codeforces handler:", err)
 	}
+	cf.Contests.StartContestUpdate(contestUpdateInterval)
+	cf.Pinger.StartContestPingCheck(contestPingCheckInterval)
 
 	session.AddHandler(func(session *discordgo.Session, message *discordgo.MessageCreate) {
 		// Don't react to messages from this bot
