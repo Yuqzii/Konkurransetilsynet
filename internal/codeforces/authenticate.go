@@ -1,18 +1,16 @@
 package codeforces
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
-	"net/http"
 	"os"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/yuqzii/konkurransetilsynet/internal/database"
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
@@ -24,7 +22,16 @@ const (
 	maxProblemRating       = 1500
 )
 
-func (s *Handler) authCommand(args []string, m *discordgo.MessageCreate) error {
+type authService struct {
+	db      *pgxpool.Pool
+	discord *discordgo.Session
+}
+
+func newAuthService(db *pgxpool.Pool, discord *discordgo.Session) *authService {
+	return &authService{db: db, discord: discord}
+}
+
+func (s *authService) authCommand(args []string, m *discordgo.MessageCreate) error {
 	// Ensure correct argument count
 	if len(args) < 3 {
 		err := utils.UnknownCommand(s.discord, m)
@@ -40,7 +47,7 @@ func (s *Handler) authCommand(args []string, m *discordgo.MessageCreate) error {
 		if err != nil {
 			log.Println("Failed to check in database:", err)
 		} else if connectedHandle != "" {
-			err = onAlreadyConnected(connectedHandle, s.discord, m)
+			err = s.onAlreadyConnected(connectedHandle, m)
 			if err != nil {
 				log.Println("Failed to send already connected message:", err)
 			}
@@ -54,59 +61,33 @@ func (s *Handler) authCommand(args []string, m *discordgo.MessageCreate) error {
 	}
 	if !userExists {
 		log.Printf("Codeforces user with handle '%s' does not exist.", args[2])
-		err = onUserNotExist(args[2], s.discord, m)
+		err = s.onUserNotExist(args[2], m)
 		return err
 	}
 
-	err = authenticate(args[2], s.discord, m)
+	err = s.authenticate(args[2], m)
 	if err != nil {
 		log.Println("Authentication failed:", err)
 	}
 	return nil
 }
 
-func onAlreadyConnected(handle string, disc *discordgo.Session, m *discordgo.MessageCreate) error {
+func (s *authService) onAlreadyConnected(handle string, m *discordgo.MessageCreate) error {
 	log.Printf("Discord user %s (%s) is already connected to Codeforces user '%s'.",
 		m.Author.ID, m.Author.Username, handle)
 	msgStr := fmt.Sprintf("<@%s> is already connected to the Codeforces user '%s'.", m.Author.ID, handle)
-	_, err := disc.ChannelMessageSend(m.ChannelID, msgStr)
+	_, err := s.discord.ChannelMessageSend(m.ChannelID, msgStr)
 	return err
 }
 
-func checkUserExistence(handle string) (exists bool, err error) {
-	type userInfo struct {
-		Status  string `json:"status"`
-		Comment string `json:"comment,omitempty"`
-	}
-	apiStr := fmt.Sprintf("https://codeforces.com/api/user.info?handles=%s&checkHistoricHandles=false", handle)
-	res, err := http.Get(apiStr)
-	if err != nil {
-		return false, fmt.Errorf("failed to call Codeforces user.info api: %w", err)
-	}
-	defer func() {
-		err = errors.Join(err, res.Body.Close())
-	}()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return false, err
-	}
-
-	var apiStruct userInfo
-	err = json.Unmarshal(body, &apiStruct)
-
-	exists = apiStruct.Status == "OK"
-	return exists, err
-}
-
-func onUserNotExist(handle string, disc *discordgo.Session, m *discordgo.MessageCreate) error {
-	_, err := disc.ChannelMessageSend(m.ChannelID,
+func (s *authService) onUserNotExist(handle string, m *discordgo.MessageCreate) error {
+	_, err := s.discord.ChannelMessageSend(m.ChannelID,
 		fmt.Sprintf("Could not find a Codeforces user with the name '%s', are you sure you spelled it correctly?",
 			handle))
 	return err
 }
 
-func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreate) error {
+func (s *authService) authenticate(handle string, m *discordgo.MessageCreate) error {
 	// Get random problem with a rating <= 1500
 	problems, err := getProblems()
 	if err != nil {
@@ -131,7 +112,7 @@ func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreat
 		prob = testProblem
 	}
 
-	err = sendAuthInstructions(prob, s, m)
+	err = s.sendAuthInstructions(prob, m)
 	if err != nil {
 		return fmt.Errorf("failed to send auth instructions: %w", err)
 	}
@@ -140,12 +121,12 @@ func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreat
 	startAuthCheck(handle, prob.ContestID, prob.Index, authTimeoutSeconds, authChan)
 	success := <-authChan
 	if success {
-		err = onAuthSuccess(handle, s, m)
+		err = s.onAuthSuccess(handle, m)
 		if err != nil {
 			return err
 		}
 	} else {
-		err = onAuthFail(handle, prob, s, m)
+		err = s.onAuthFail(handle, prob, m)
 		if err != nil {
 			return err
 		}
@@ -153,18 +134,18 @@ func authenticate(handle string, s *discordgo.Session, m *discordgo.MessageCreat
 	return nil
 }
 
-func sendAuthInstructions(prob *problem, s *discordgo.Session, m *discordgo.MessageCreate) error {
+func (s *authService) sendAuthInstructions(prob *problem, m *discordgo.MessageCreate) error {
 	probLink := fmt.Sprintf("https://codeforces.com/problemset/problem/%d/%s", prob.ContestID, prob.Index)
 	msgStr := fmt.Sprintf("Submit a compilation error to [%s - %d%s](%s) within 2 minutes to authenticate. <@%s>",
 		prob.Name, prob.ContestID, prob.Index, probLink, m.Author.ID)
-	_, err := s.ChannelMessageSend(m.ChannelID, msgStr)
+	_, err := s.discord.ChannelMessageSend(m.ChannelID, msgStr)
 	return err
 }
 
-func onAuthSuccess(handle string, s *discordgo.Session, m *discordgo.MessageCreate) error {
+func (s *authService) onAuthSuccess(handle string, m *discordgo.MessageCreate) error {
 	inDB, err := database.DiscordIDExists(m.Author.ID)
 	if err != nil {
-		msgErr := authSuccessFailMessage(s, m)
+		msgErr := s.authSuccessFailMessage(m)
 		err = errors.Join(err, msgErr)
 		return fmt.Errorf("failed to check if Discord ID %s exists in database: %w", m.Author.ID, err)
 	}
@@ -174,7 +155,7 @@ func onAuthSuccess(handle string, s *discordgo.Session, m *discordgo.MessageCrea
 			m.Author.ID, m.Author.Username, handle)
 		err = database.UpdateCodeforcesUser(m.Author.ID, handle)
 		if err != nil {
-			msgErr := authSuccessFailMessage(s, m)
+			msgErr := s.authSuccessFailMessage(m)
 			err = errors.Join(err, msgErr)
 			return err
 		}
@@ -184,7 +165,7 @@ func onAuthSuccess(handle string, s *discordgo.Session, m *discordgo.MessageCrea
 			m.Author.ID, m.Author.Username, handle)
 		err = database.AddCodeforcesUser(m.Author.ID, handle)
 		if err != nil {
-			msgErr := authSuccessFailMessage(s, m)
+			msgErr := s.authSuccessFailMessage(m)
 			err = errors.Join(err, msgErr)
 			return err
 		}
@@ -195,7 +176,7 @@ func onAuthSuccess(handle string, s *discordgo.Session, m *discordgo.MessageCrea
 	// Tell user that the authentication succeeded
 	msgStr := fmt.Sprintf("Successfully authenticated discord user <@%s> with Codeforces handle '%s'.",
 		m.Author.ID, handle)
-	_, err = s.ChannelMessageSend(m.ChannelID, msgStr)
+	_, err = s.discord.ChannelMessageSend(m.ChannelID, msgStr)
 	if err != nil {
 		return fmt.Errorf("failed to send authentication success message: %w", err)
 	}
@@ -204,22 +185,22 @@ func onAuthSuccess(handle string, s *discordgo.Session, m *discordgo.MessageCrea
 }
 
 // Send discord message to let user know that the authentication 'succeeded', but something went wrong on our end
-func authSuccessFailMessage(s *discordgo.Session, m *discordgo.MessageCreate) error {
+func (s *authService) authSuccessFailMessage(m *discordgo.MessageCreate) error {
 	msgStr := fmt.Sprintf("Successfully detected a compilation error submission, "+
 		"but an error occurred when storing your information. "+
 		"If the problem persists please contact one of the devs or open an issue on the "+
 		"[Github page](https://github.com/yuqzii/konkurransetilsynet). <@%s>", m.Author.ID)
-	_, err := s.ChannelMessageSend(m.ChannelID, msgStr)
+	_, err := s.discord.ChannelMessageSend(m.ChannelID, msgStr)
 	return err
 }
 
-func onAuthFail(handle string, prob *problem, s *discordgo.Session, m *discordgo.MessageCreate) error {
+func (s *authService) onAuthFail(handle string, prob *problem, m *discordgo.MessageCreate) error {
 	// Send message explaining that the authentication failed
 	probLink := fmt.Sprintf("https://codeforces.com/problemset/problem/%d/%s", prob.ContestID, prob.Index)
 	msgStr := fmt.Sprintf("Authentication for Codeforces user with handle '%s' failed. "+
 		"Did not find a compilation error submitted to [%s - %d%s](%s). <@%s>",
 		handle, prob.Name, prob.ContestID, prob.Index, probLink, m.Author.ID)
-	_, err := s.ChannelMessageSend(m.ChannelID, msgStr)
+	_, err := s.discord.ChannelMessageSend(m.ChannelID, msgStr)
 	if err != nil {
 		return fmt.Errorf("failed to send authentication failed message: %w", err)
 	}

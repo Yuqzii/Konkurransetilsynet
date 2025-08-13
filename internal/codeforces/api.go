@@ -204,3 +204,32 @@ func hasUpdatedRating(c *contest) (updated bool, err error) {
 	// Codeforces returns an empty result before the ratings have updated
 	return len(api.Result) != 0, err
 }
+
+func checkUserExistence(handle string) (exists bool, err error) {
+	type userInfo struct {
+		Status  string `json:"status"`
+		Comment string `json:"comment,omitempty"`
+	}
+	apiStr := fmt.Sprintf("https://codeforces.com/api/user.info?handles=%s&checkHistoricHandles=false", handle)
+	res, err := http.Get(apiStr)
+	if err != nil {
+		return false, fmt.Errorf("failed to call Codeforces user.info api: %w", err)
+	}
+	defer func() {
+		err = errors.Join(err, res.Body.Close())
+	}()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return false, err
+	}
+
+	var apiStruct userInfo
+	err = json.Unmarshal(body, &apiStruct)
+	if err != nil {
+		return false, err
+	}
+
+	exists = apiStruct.Status == "OK"
+	return exists, err
+}

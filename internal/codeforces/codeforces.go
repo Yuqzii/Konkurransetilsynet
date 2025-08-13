@@ -25,6 +25,7 @@ type Handler struct {
 
 	Contests *contestService
 	Pinger   *contestPinger
+	Auth     *authService
 
 	guilds []*discordgo.Guild
 	mu     sync.RWMutex
@@ -35,10 +36,13 @@ type Handler struct {
 
 func New(db *pgxpool.Pool, discord *discordgo.Session, guilds []*discordgo.Guild) (*Handler, error) {
 	h := Handler{db: db, discord: discord, guilds: guilds}
+
 	h.Contests = newContestService(discord)
 	h.Contests.addListener(&h)
 
 	h.Pinger = newPinger(discord, h.Contests, &h)
+
+	h.Auth = newAuthService(db, discord)
 
 	if err := h.Pinger.updatePingData(); err != nil {
 		return nil, fmt.Errorf("initializing ping guild data: %w", err)
@@ -68,7 +72,7 @@ func (h *Handler) HandleCommand(args []string, m *discordgo.MessageCreate) error
 			return errors.Join(errors.New("adding debug contest failed,"), err)
 		}
 	case "authenticate":
-		err := h.authCommand(args, m)
+		err := h.Auth.authCommand(args, m)
 		if err != nil {
 			return fmt.Errorf("authentication command failed: %w", err)
 		}
