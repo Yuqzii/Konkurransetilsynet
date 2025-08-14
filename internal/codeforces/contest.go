@@ -175,7 +175,10 @@ func (s *contestService) addDebugContest(args []string, m *discordgo.MessageCrea
 
 	s.addContest(name, id, startTime)
 
-	s.listContests(m)
+	err = s.listContests(m)
+	if err != nil {
+		return fmt.Errorf("listing contests: %w", err)
+	}
 	return nil
 }
 
