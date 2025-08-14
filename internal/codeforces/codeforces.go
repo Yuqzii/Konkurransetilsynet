@@ -47,7 +47,7 @@ func NewHandler(db Repository, discord *discordgo.Session, client api, guilds []
 
 	h.Pinger = newPinger(discord, h.Contests, &h)
 
-	h.auth = newAuthService(db, discord, client, 2*time.Minute)
+	h.auth = newAuthService(db, discord, client)
 
 	h.leaderboard = newLeaderboardService(discord, client, db, &h)
 

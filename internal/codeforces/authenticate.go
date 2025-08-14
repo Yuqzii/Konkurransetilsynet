@@ -13,23 +13,67 @@ import (
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
-const (
-	submissionCheckInteval = 5 * time.Second
-	submissionCheckCount   = 5
-	authTimeoutSeconds     = 120
-	maxProblemRating       = 1500
-)
-
 type authService struct {
 	db      Repository
 	discord *discordgo.Session
 	client  api
 
-	timeout time.Duration
+	timeout                 time.Duration
+	maxProblemRating        uint16
+	submissionCheckCount    uint16
+	submissionCheckInterval time.Duration
 }
 
-func newAuthService(db Repository, discord *discordgo.Session, client api, timeout time.Duration) *authService {
-	return &authService{db: db, discord: discord, client: client, timeout: timeout}
+// The authService uses functional options for easier configuration
+type authOption func(*authService)
+
+func newAuthService(db Repository, discord *discordgo.Session, client api, opts ...authOption) *authService {
+	const (
+		defaultTimeout                 time.Duration = 2 * time.Minute
+		defaultMaxProblemRating        uint16        = 1500
+		defaultSubmissionCheckCount    uint16        = 5
+		defaultSubmissionCheckInterval time.Duration = 5 * time.Second
+	)
+	s := &authService{
+		db:                      db,
+		discord:                 discord,
+		client:                  client,
+		timeout:                 defaultTimeout,
+		maxProblemRating:        defaultMaxProblemRating,
+		submissionCheckCount:    defaultSubmissionCheckCount,
+		submissionCheckInterval: defaultSubmissionCheckInterval,
+	}
+
+	// Apply each of the function options to the service
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
+}
+
+func WithTimeout(timeout time.Duration) authOption {
+	return func(s *authService) {
+		s.timeout = timeout
+	}
+}
+
+func WithMaxProblemRating(maxRating uint16) authOption {
+	return func(s *authService) {
+		s.maxProblemRating = maxRating
+	}
+}
+
+func WithSubmissionCheckCount(cnt uint16) authOption {
+	return func(s *authService) {
+		s.submissionCheckCount = cnt
+	}
+}
+
+func WithSubmissionCheckInterval(interval time.Duration) authOption {
+	return func(s *authService) {
+		s.submissionCheckInterval = interval
+	}
 }
 
 func (s *authService) authCommand(args []string, m *discordgo.MessageCreate) error {
@@ -95,7 +139,7 @@ func (s *authService) authenticate(handle string, m *discordgo.MessageCreate) er
 		return fmt.Errorf("getting problems from Codeforces API: %w", err)
 	}
 	problems = filterProblems(problems, func(prob *problem) bool {
-		return prob.Rating <= maxProblemRating
+		return prob.Rating <= s.maxProblemRating
 	})
 	prob, err := getRandomProblem(problems)
 	if err != nil {
@@ -219,9 +263,9 @@ func (s *authService) startAuthCheck(handle string, contID int, problemIdx strin
 				close(resultChan)
 				return
 			}
-			time.Sleep(submissionCheckInteval)
+			time.Sleep(s.submissionCheckInterval)
 			// Get submissions and check if any of them match the criteria
-			subs, err := s.client.getSubmissions(handle, submissionCheckCount)
+			subs, err := s.client.getSubmissions(handle, s.submissionCheckCount)
 			if err != nil {
 				log.Printf("Failed to get submissions from user '%s': %v, retrying...", handle, err)
 				continue

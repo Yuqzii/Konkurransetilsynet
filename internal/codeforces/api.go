@@ -13,7 +13,7 @@ import (
 type api interface {
 	getContests() ([]*contest, error)
 	getProblems() ([]problem, error)
-	getSubmissions(handle string, count int) ([]submission, error)
+	getSubmissions(handle string, count uint16) ([]submission, error)
 	getRating(handle string) (*ratingChange, error)
 	hasUpdatedRating(c *contest) (bool, error)
 	checkUserExistence(handle string) (bool, error)
@@ -58,7 +58,7 @@ type problem struct {
 	Index     string `json:"index"`
 	Name      string `json:"name"`
 	Type      string `json:"type"`
-	Rating    int    `json:"rating,omitempty"`
+	Rating    uint16 `json:"rating,omitempty"`
 }
 
 type submission struct {
@@ -161,12 +161,12 @@ func (c *client) getProblems() (problems []problem, err error) {
 	return apiStruct.Result.Problems, err
 }
 
-func (c *client) getSubmissions(handle string, count int) (submissions []submission, err error) {
+func (c *client) getSubmissions(handle string, count uint16) (submissions []submission, err error) {
 	endpoint := "user.status?"
 	params := url.Values{}
 	params.Set("handle", handle)
 	params.Set("from", "1")
-	params.Set("count", strconv.Itoa(count))
+	params.Set("count", strconv.FormatUint(uint64(count), 10))
 	res, err := c.client.Get(c.url + endpoint + params.Encode())
 	if err != nil {
 		return nil, err
