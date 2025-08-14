@@ -29,6 +29,8 @@ func NewClient(httpClient *http.Client, url string) *client {
 }
 
 var ErrNoRating = errors.New("the user does not have a rating")
+var ErrCodeforcesIssue = errors.New("issue with the Codeforces server")
+var ErrClientIssue = errors.New("(skill) issue with our client")
 
 type contest struct {
 	ID                    uint32 `json:"id"`
@@ -98,6 +100,10 @@ func (c *client) getContests() (contests []*contest, err error) {
 		}
 	}()
 
+	if err = responseCodeCheck(res); err != nil {
+		return nil, err
+	}
+
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
@@ -129,6 +135,10 @@ func (c *client) getProblems() (problems []problem, err error) {
 			err = res.Body.Close()
 		}
 	}()
+
+	if err = responseCodeCheck(res); err != nil {
+		return nil, err
+	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
@@ -165,6 +175,10 @@ func (c *client) getSubmissions(handle string, count int) (submissions []submiss
 		err = errors.Join(err, res.Body.Close())
 	}()
 
+	if err = responseCodeCheck(res); err != nil {
+		return nil, err
+	}
+
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
@@ -196,6 +210,10 @@ func (c *client) getRating(handle string) (rating *ratingChange, err error) {
 		err = errors.Join(err, res.Body.Close())
 	}()
 
+	if err = responseCodeCheck(res); err != nil {
+		return nil, err
+	}
+
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
@@ -225,6 +243,10 @@ func (c *client) hasUpdatedRating(contest *contest) (updated bool, err error) {
 	defer func() {
 		err = errors.Join(err, res.Body.Close())
 	}()
+
+	if err = responseCodeCheck(res); err != nil {
+		return false, err
+	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
@@ -259,6 +281,10 @@ func (c *client) checkUserExistence(handle string) (exists bool, err error) {
 		err = errors.Join(err, res.Body.Close())
 	}()
 
+	if err = responseCodeCheck(res); err != nil {
+		return false, err
+	}
+
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return false, err
@@ -272,4 +298,15 @@ func (c *client) checkUserExistence(handle string) (exists bool, err error) {
 
 	exists = apiStruct.Status == "OK"
 	return exists, err
+}
+
+func responseCodeCheck(res *http.Response) error {
+	// Status code 4**
+	if res.StatusCode/100 == 4 {
+		return fmt.Errorf("%w: %s", ErrClientIssue, res.Status)
+	} else if res.StatusCode/100 == 5 {
+		return fmt.Errorf("%w: %s", ErrCodeforcesIssue, res.Status)
+	}
+
+	return nil
 }
