@@ -10,6 +10,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/yuqzii/konkurransetilsynet/internal/database"
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
@@ -23,32 +24,38 @@ type lbGuildData struct {
 	channelID string
 }
 
-type lbGuildDataList struct {
+type lbService struct {
+	discord *discordgo.Session
+	client  api
+	db      *pgxpool.Pool
+	guilds  guildProvider
+
 	data []lbGuildData
 	mu   sync.RWMutex
 }
 
-// @abstract	Sends a leaderboard message for every guild the bot is in.
-func (s *Handler) sendLeaderboardMessageAll(c *contest) {
-	s.lbMu.RLock()
-	defer s.lbMu.RUnlock()
+func newLeaderboardService(discord *discordgo.Session, client api, guilds guildProvider) *lbService {
+	return &lbService{discord: discord, client: client, guilds: guilds}
+}
 
-	for i := range s.lbGuildData {
+// Sends a leaderboard message for every guild the bot is in.
+func (s *lbService) sendLeaderboardMessageAll(c *contest) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, data := range s.data {
 		go func() {
-			err := s.sendLeaderboardMessage(i, c)
+			err := s.sendLeaderboardMessage(data.guildID, data.channelID, c)
 			if err != nil {
 				log.Printf("Error when sending leaderboard message to all guilds (guild %s): %s",
-					s.lbGuildData[i].guildID, err)
+					data.guildID, err)
 			}
 		}()
 	}
 }
 
-func (s *Handler) sendLeaderboardMessage(idx int, c *contest) error {
-	guildID := s.lbGuildData[idx].guildID
-	channelID := s.lbGuildData[idx].channelID
-
-	ratings, err := getRatingsInGuild(guildID, s.discord)
+func (s *lbService) sendLeaderboardMessage(guildID string, channelID string, c *contest) error {
+	ratings, err := s.getRatingsInGuild(guildID)
 	if err != nil {
 		return fmt.Errorf("getting ratings in guild %s: %w", guildID, err)
 	}
@@ -79,7 +86,7 @@ func (s *Handler) sendLeaderboardMessage(idx int, c *contest) error {
 }
 
 // Sends true to the returned channel when the ratings have been updated
-func (s *Handler) startRatingUpdateCheck(c *contest, interval time.Duration) <-chan bool {
+func (s *lbService) startRatingUpdateCheck(c *contest, interval time.Duration) <-chan bool {
 	updatedChan := make(chan bool)
 	go func() {
 		errCnt := 0
@@ -87,7 +94,7 @@ func (s *Handler) startRatingUpdateCheck(c *contest, interval time.Duration) <-c
 
 		for {
 			time.Sleep(interval)
-			updated, err := hasUpdatedRating(c)
+			updated, err := s.client.hasUpdatedRating(c)
 			if err != nil {
 				errCnt++
 				log.Printf("Failed to check Codeforces rating update (attempt %d of %d): %s", errCnt, maxErrs, err)
@@ -106,8 +113,8 @@ func (s *Handler) startRatingUpdateCheck(c *contest, interval time.Duration) <-c
 	return updatedChan
 }
 
-func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, error) {
-	handles, ids, err := getCodeforcesInGuild(guildID, s)
+func (s *lbService) getRatingsInGuild(guildID string) ([]*ratingChange, error) {
+	handles, ids, err := s.getCodeforcesInGuild(guildID)
 	if err != nil {
 		return nil, fmt.Errorf("getting Codeforces handles in %s: %w", guildID, err)
 	}
@@ -123,7 +130,7 @@ func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, e
 		go func() {
 			defer wg.Done()
 
-			rating, err := getRating(handles[i])
+			rating, err := s.client.getRating(handles[i])
 			if err != nil {
 				log.Printf("Getting Codeforces rating from handle %s failed: %s", handles[i], err)
 				return
@@ -146,8 +153,8 @@ func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, e
 	return ratings, nil
 }
 
-func getCodeforcesInGuild(guildID string, s *discordgo.Session) (result []string, discordIDs []string, err error) {
-	guild, err := s.State.Guild(guildID)
+func (s *lbService) getCodeforcesInGuild(guildID string) (result []string, discordIDs []string, err error) {
+	guild, err := s.discord.Guild(guildID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("getting guild from id %s: %w", guildID, err)
 	}
@@ -184,19 +191,20 @@ func getCodeforcesInGuild(guildID string, s *discordgo.Session) (result []string
 	return result, discordIDs, nil
 }
 
-func (s *Handler) updateLeaderboardGuildData() error {
-	channels, err := utils.CreateChannelIfNotExist(s.discord, lbChannelName, s.guilds)
+func (s *lbService) updateData() error {
+	guilds := s.guilds.getGuilds()
+	channels, err := utils.CreateChannelIfNotExist(s.discord, lbChannelName, guilds)
 	if err != nil {
 		return err
 	}
 
 	var newData []lbGuildData
-	for i := range s.guilds {
-		newData = append(newData, lbGuildData{s.guilds[i].ID, channels[i]})
+	for i := range guilds {
+		newData = append(newData, lbGuildData{guilds[i].ID, channels[i]})
 	}
 
-	s.lbMu.Lock()
-	s.lbGuildData = newData
-	s.lbMu.Unlock()
+	s.mu.Lock()
+	s.data = newData
+	s.mu.Unlock()
 	return nil
 }

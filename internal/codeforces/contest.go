@@ -23,8 +23,9 @@ type contestProvider interface {
 }
 
 type contestService struct {
-	discord   *discordgo.Session
-	client    api
+	discord *discordgo.Session
+	client  api
+
 	contests  []*contest
 	mu        sync.RWMutex
 	listeners []contestEndListener

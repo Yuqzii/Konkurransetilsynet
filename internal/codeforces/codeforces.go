@@ -23,16 +23,14 @@ type Handler struct {
 	db      *pgxpool.Pool
 	discord *discordgo.Session
 
-	client   api
-	Contests *contestService
-	Pinger   *contestPinger
-	auth     *authService
+	client      api
+	Contests    *contestService
+	Pinger      *contestPinger
+	auth        *authService
+	leaderboard *lbService
 
 	guilds []*discordgo.Guild
 	mu     sync.RWMutex
-
-	lbGuildData []lbGuildData
-	lbMu        sync.RWMutex
 }
 
 func NewHandler(db *pgxpool.Pool, discord *discordgo.Session, client api, guilds []*discordgo.Guild) (*Handler, error) {
@@ -45,11 +43,13 @@ func NewHandler(db *pgxpool.Pool, discord *discordgo.Session, client api, guilds
 
 	h.auth = newAuthService(db, discord, client)
 
+	h.leaderboard = newLeaderboardService(discord, client, &h)
+
 	if err := h.Pinger.updatePingData(); err != nil {
 		return nil, fmt.Errorf("initializing ping guild data: %w", err)
 	}
 
-	if err := h.updateLeaderboardGuildData(); err != nil {
+	if err := h.leaderboard.updateData(); err != nil {
 		return nil, fmt.Errorf("initializing leaderboard guild data: %w", err)
 	}
 
@@ -95,10 +95,10 @@ func (h *Handler) getGuilds() []*discordgo.Guild {
 }
 
 func (h *Handler) onContestEnd(c *contest) {
-	ratingUpdates := h.startRatingUpdateCheck(c, ratingUpdateCheckInterval)
+	ratingUpdates := h.leaderboard.startRatingUpdateCheck(c, ratingUpdateCheckInterval)
 	for updated := range ratingUpdates {
 		if updated {
-			h.sendLeaderboardMessageAll(c)
+			h.leaderboard.sendLeaderboardMessageAll(c)
 		}
 	}
 }
