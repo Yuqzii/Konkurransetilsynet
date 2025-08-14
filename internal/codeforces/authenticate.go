@@ -37,9 +37,10 @@ func (s *authService) authCommand(args []string, m *discordgo.MessageCreate) err
 		err := utils.UnknownCommand(s.discord, m)
 		return err
 	}
+	handle := args[2]
 
 	log.Printf("Received Codeforces authenticate for user with handle '%s' from %s (%s).",
-		args[2], m.Author.ID, m.Author.Username)
+		handle, m.Author.ID, m.Author.Username)
 
 	connectedHandle, err := database.GetConnectedCodeforces(m.Author.ID)
 	// ErrNoRows expected when user is not already connected
@@ -55,17 +56,17 @@ func (s *authService) authCommand(args []string, m *discordgo.MessageCreate) err
 		}
 	}
 
-	userExists, err := checkUserExistence(args[2])
+	userExists, err := checkUserExistence(handle)
 	if err != nil {
-		return fmt.Errorf("failed to check existence of Codeforces user '%s': %w", args[2], err)
+		return fmt.Errorf("failed to check existence of Codeforces user '%s': %w", handle, err)
 	}
 	if !userExists {
-		log.Printf("Codeforces user with handle '%s' does not exist.", args[2])
-		err = s.onUserNotExist(args[2], m)
+		log.Printf("Codeforces user with handle '%s' does not exist.", handle)
+		err = s.onUserNotExist(handle, m)
 		return err
 	}
 
-	err = s.authenticate(args[2], m)
+	err = s.authenticate(handle, m)
 	if err != nil {
 		log.Println("Authentication failed:", err)
 	}
