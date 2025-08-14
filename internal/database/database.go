@@ -2,53 +2,53 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/yuqzii/konkurransetilsynet/internal/codeforces"
 )
 
-const (
-	host   = "db"
-	port   = 5432
-	user   = "postgres"
-	dbName = "bot_data"
-)
-
-var DBConn *pgxpool.Pool
-
-// Tries to initialize the dbconn variable with a connection from connectToDatabase().
-// Returns a connection to the db which should be closed when the application exits.
-func Init() (*pgxpool.Pool, error) {
-	db, err := connectToDatabase()
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-	DBConn = db
-	return db, nil
+type db struct {
+	conn *pgxpool.Pool
 }
 
-func connectToDatabase() (*pgxpool.Pool, error) {
-	// Connect to database
-	password := os.Getenv("POSTGRES_PASSWORD")
+// Creates a new db with the provided parameters.
+// Remember to close using db.Close().
+func New(ctx context.Context, host, user, password, dbName string, port uint16) (*db, error) {
+	conn, err := connectToDatabase(ctx, host, user, password, dbName, port)
+	if err != nil {
+		return nil, fmt.Errorf("connecting to database: %w", err)
+	}
+
+	return &db{conn: conn}, nil
+}
+
+// Should be called when application exits.
+func (db *db) Close() {
+	db.conn.Close()
+}
+
+func connectToDatabase(ctx context.Context, host, user, password, dbName string, port uint16) (*pgxpool.Pool, error) {
+	// Connect to database.
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		user, password, host, port, dbName)
-	dbpool, err := pgxpool.New(context.Background(), connStr)
+	dbpool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connection pool: %w", err)
 	}
-	// Make sure database is responding
-	err = dbpool.Ping(context.Background())
+	// Make sure database is responding.
+	err = dbpool.Ping(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("database did not respond after connecting: %w", err)
 	}
 	return dbpool, nil
 }
 
-func DiscordIDExists(discID string) (bool, error) {
+func (db *db) DiscordIDExists(ctx context.Context, discID string) (bool, error) {
 	var dbDiscID string
-	err := DBConn.QueryRow(context.Background(),
+	err := db.conn.QueryRow(ctx,
 		"SELECT discord_id FROM user_data WHERE discord_id=$1;", discID).Scan(&dbDiscID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -61,51 +61,54 @@ func DiscordIDExists(discID string) (bool, error) {
 	return true, nil
 }
 
-func AddCodeforcesUser(discID, handle string) error {
-	tx, err := DBConn.Begin(context.Background())
+func (db *db) AddCodeforcesUser(ctx context.Context, discID, handle string) error {
+	tx, err := db.conn.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback(context.Background()) // nolint: errcheck
+	defer tx.Rollback(ctx) // nolint: errcheck
 
-	_, err = tx.Exec(context.Background(),
+	_, err = tx.Exec(ctx,
 		"INSERT INTO user_data (discord_id, codeforces_handle) VALUES ($1, $2);", discID, handle)
 	if err != nil {
 		return fmt.Errorf("failed to insert discord id %s and codeforces name '%s' into user_data: %w",
 			discID, handle, err)
 	}
 
-	err = tx.Commit(context.Background())
+	err = tx.Commit(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to commit insertion to user_data: %w", err)
 	}
 	return nil
 }
 
-func UpdateCodeforcesUser(discID, handle string) error {
-	tx, err := DBConn.Begin(context.Background())
+func (db *db) UpdateCodeforcesUser(ctx context.Context, discID, handle string) error {
+	tx, err := db.conn.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback(context.Background()) // nolint: errcheck
+	defer tx.Rollback(ctx) // nolint: errcheck
 
-	_, err = tx.Exec(context.Background(),
+	_, err = tx.Exec(ctx,
 		"UPDATE user_data SET codeforces_handle=$1 WHERE discord_id=$2;", handle, discID)
 	if err != nil {
 		return fmt.Errorf("failed to update the codeforces handle belonging to discord id %s to '%s': %w",
 			discID, handle, err)
 	}
 
-	err = tx.Commit(context.Background())
+	err = tx.Commit(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to commit update to user_data: %w", err)
 	}
 	return nil
 }
 
-func GetConnectedCodeforces(discID string) (connectedHandle string, err error) {
-	err = DBConn.QueryRow(context.Background(),
+func (db *db) GetConnectedCodeforces(ctx context.Context, discID string) (connectedHandle string, err error) {
+	err = db.conn.QueryRow(ctx,
 		"SELECT codeforces_handle FROM user_data WHERE discord_id=$1", discID).Scan(&connectedHandle)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", codeforces.ErrUserNotConnected
+	}
 	if err != nil {
 		return "", err
 	}

@@ -1,6 +1,7 @@
 package codeforces
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -9,9 +10,6 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/yuqzii/konkurransetilsynet/internal/database"
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
@@ -27,7 +25,7 @@ type lbGuildData struct {
 type lbService struct {
 	discord *discordgo.Session
 	client  api
-	db      *pgxpool.Pool
+	db      Repository
 	guilds  guildProvider
 
 	data []lbGuildData
@@ -161,9 +159,8 @@ func (s *lbService) getCodeforcesInGuild(guildID string) (result []string, disco
 
 	// Helper lambda to avoid duplicate code in member loop and owner
 	getCodeforcesFromID := func(id string) error {
-		handle, err := database.GetConnectedCodeforces(id)
-		// ErrNoRows expected if the user has not connected their Codeforces
-		if err != nil && err != pgx.ErrNoRows {
+		handle, err := s.db.GetConnectedCodeforces(context.TODO(), id)
+		if err != nil && !errors.Is(err, ErrUserNotConnected) {
 			return fmt.Errorf("getting Codeforces handle of %s: %w", id, err)
 		}
 

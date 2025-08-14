@@ -1,13 +1,13 @@
 package codeforces
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
@@ -20,21 +20,27 @@ type guildProvider interface {
 }
 
 type Handler struct {
-	db      *pgxpool.Pool
 	discord *discordgo.Session
+	guilds  []*discordgo.Guild
+	mu      sync.RWMutex
 
-	client      api
 	Contests    *contestService
 	Pinger      *contestPinger
 	auth        *authService
 	leaderboard *lbService
-
-	guilds []*discordgo.Guild
-	mu     sync.RWMutex
 }
 
-func NewHandler(db *pgxpool.Pool, discord *discordgo.Session, client api, guilds []*discordgo.Guild) (*Handler, error) {
-	h := Handler{db: db, discord: discord, client: client, guilds: guilds}
+var ErrUserNotConnected error = errors.New("user not connected")
+
+type Repository interface {
+	DiscordIDExists(ctx context.Context, discID string) (bool, error)
+	AddCodeforcesUser(ctx context.Context, discID, handle string) error
+	UpdateCodeforcesUser(ctx context.Context, discID, handle string) error
+	GetConnectedCodeforces(ctx context.Context, discID string) (string, error)
+}
+
+func NewHandler(db Repository, discord *discordgo.Session, client api, guilds []*discordgo.Guild) (*Handler, error) {
+	h := Handler{discord: discord, guilds: guilds}
 
 	h.Contests = newContestService(discord, client)
 	h.Contests.addListener(&h)

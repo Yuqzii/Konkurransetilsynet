@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -25,6 +26,11 @@ const (
 	prefix                   string        = "!"
 	contestUpdateInterval    time.Duration = 1 * time.Hour
 	contestPingCheckInterval time.Duration = 1 * time.Minute
+
+	dbHost string = "db"
+	dbUser string = "postgres"
+	dbName string = "bot_data"
+	dbPort uint16 = 5432
 )
 
 func main() {
@@ -40,7 +46,8 @@ func main() {
 	}()
 
 	// Connect to database
-	db, err := database.Init()
+	dbPassword := os.Getenv("POSTGRES_PASSWORD")
+	db, err := database.New(context.Background(), dbHost, dbUser, dbPassword, dbName, dbPort)
 	if err != nil {
 		log.Fatal("Could not connect to database: ", err)
 	}
@@ -70,7 +77,7 @@ func main() {
 	}()
 
 	cfClient := codeforces.NewClient(http.DefaultClient, "https://codeforces.com/api/")
-	cf, err := codeforces.NewHandler(database.DBConn, session, cfClient, session.State.Guilds)
+	cf, err := codeforces.NewHandler(db, session, cfClient, session.State.Guilds)
 	if err != nil {
 		log.Fatal("Failed to create Codeforces handler:", err)
 	}

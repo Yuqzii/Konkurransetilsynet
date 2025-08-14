@@ -1,6 +1,7 @@
 package codeforces
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -9,9 +10,6 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/yuqzii/konkurransetilsynet/internal/database"
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
@@ -23,14 +21,14 @@ const (
 )
 
 type authService struct {
-	db      *pgxpool.Pool
+	db      Repository
 	discord *discordgo.Session
 	client  api
 
 	timeout time.Time
 }
 
-func newAuthService(db *pgxpool.Pool, discord *discordgo.Session, client api) *authService {
+func newAuthService(db Repository, discord *discordgo.Session, client api) *authService {
 	return &authService{db: db, discord: discord, client: client}
 }
 
@@ -45,9 +43,8 @@ func (s *authService) authCommand(args []string, m *discordgo.MessageCreate) err
 	log.Printf("Received Codeforces authenticate for user with handle '%s' from %s (%s).",
 		handle, m.Author.ID, m.Author.Username)
 
-	connectedHandle, err := database.GetConnectedCodeforces(m.Author.ID)
-	// ErrNoRows expected when user is not already connected
-	if err != pgx.ErrNoRows {
+	connectedHandle, err := s.db.GetConnectedCodeforces(context.TODO(), m.Author.ID)
+	if errors.Is(err, ErrUserNotConnected) {
 		if err != nil {
 			log.Println("Failed to check in database:", err)
 		} else if connectedHandle != "" {
@@ -147,7 +144,7 @@ func (s *authService) sendAuthInstructions(prob *problem, m *discordgo.MessageCr
 }
 
 func (s *authService) onAuthSuccess(handle string, m *discordgo.MessageCreate) error {
-	inDB, err := database.DiscordIDExists(m.Author.ID)
+	inDB, err := s.db.DiscordIDExists(context.TODO(), m.Author.ID)
 	if err != nil {
 		msgErr := s.authSuccessFailMessage(m)
 		err = errors.Join(err, msgErr)
@@ -157,7 +154,7 @@ func (s *authService) onAuthSuccess(handle string, m *discordgo.MessageCreate) e
 		// Cannot insert new value, need to update
 		log.Printf("Discord user %s (%s) already exists in database, updating Codeforces handle to '%s',",
 			m.Author.ID, m.Author.Username, handle)
-		err = database.UpdateCodeforcesUser(m.Author.ID, handle)
+		err = s.db.UpdateCodeforcesUser(context.TODO(), m.Author.ID, handle)
 		if err != nil {
 			msgErr := s.authSuccessFailMessage(m)
 			err = errors.Join(err, msgErr)
@@ -167,7 +164,7 @@ func (s *authService) onAuthSuccess(handle string, m *discordgo.MessageCreate) e
 		// Insert new column
 		log.Printf("Discord user %s (%s) does not exist in database, inserting new row with Codeforces handle '%s'.",
 			m.Author.ID, m.Author.Username, handle)
-		err = database.AddCodeforcesUser(m.Author.ID, handle)
+		err = s.db.AddCodeforcesUser(context.TODO(), m.Author.ID, handle)
 		if err != nil {
 			msgErr := s.authSuccessFailMessage(m)
 			err = errors.Join(err, msgErr)
