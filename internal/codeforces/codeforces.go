@@ -77,6 +77,13 @@ func (h *Handler) HandleCommand(args []string, m *discordgo.MessageCreate) error
 		if err != nil {
 			return fmt.Errorf("authentication command failed: %w", err)
 		}
+	case "leaderboard":
+		// This is only for testing purposes
+		c := h.Contests.addContest("Leaderboard Test Contest", 69, uint32(time.Now().Unix()))
+		err := h.leaderboard.sendLeaderboardMessage(m.GuildID, m.ChannelID, c)
+		if err != nil {
+			return fmt.Errorf("sending test leaderboard message: %w", err)
+		}
 	default:
 		err := utils.UnknownCommand(h.discord, m)
 		return err

@@ -119,7 +119,7 @@ func (s *contestService) getContests() []*contest {
 	return res
 }
 
-func (s *contestService) addContest(name string, id uint32, startTime uint32) {
+func (s *contestService) addContest(name string, id uint32, startTime uint32) *contest {
 	// Copy contests into new slice to avoid concurrency issues when writing
 	s.mu.RLock()
 	newContests := make([]*contest, len(s.contests))
@@ -131,19 +131,22 @@ func (s *contestService) addContest(name string, id uint32, startTime uint32) {
 	i := sort.Search(len(newContests), func(i int) bool {
 		return newContests[i].StartTimeSeconds >= startTime
 	})
-	// Insert new contest into slice at the correct position
-	newContests = slices.Insert(newContests, i, &contest{
+
+	newContest := &contest{
 		ID:               id,
 		Name:             name,
 		StartTimeSeconds: startTime,
 		DurationSeconds:  60,
 		WebsiteURL:       "https://codeforces.com/contests",
-	})
-
+	}
+	// Insert new contest into slice at the correct position
+	newContests = slices.Insert(newContests, i, newContest)
 	// Update contests to our slice containing the new element
 	s.mu.Lock()
 	s.contests = newContests
 	s.mu.Unlock()
+
+	return newContest
 }
 
 func (s *contestService) addDebugContest(args []string, m *discordgo.MessageCreate) error {
