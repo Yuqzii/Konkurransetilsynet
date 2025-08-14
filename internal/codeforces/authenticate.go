@@ -25,11 +25,11 @@ type authService struct {
 	discord *discordgo.Session
 	client  api
 
-	timeout time.Time
+	timeout time.Duration
 }
 
-func newAuthService(db Repository, discord *discordgo.Session, client api) *authService {
-	return &authService{db: db, discord: discord, client: client}
+func newAuthService(db Repository, discord *discordgo.Session, client api, timeout time.Duration) *authService {
+	return &authService{db: db, discord: discord, client: client, timeout: timeout}
 }
 
 func (s *authService) authCommand(args []string, m *discordgo.MessageCreate) error {
@@ -44,7 +44,7 @@ func (s *authService) authCommand(args []string, m *discordgo.MessageCreate) err
 		handle, m.Author.ID, m.Author.Username)
 
 	connectedHandle, err := s.db.GetConnectedCodeforces(context.TODO(), m.Author.ID)
-	if errors.Is(err, ErrUserNotConnected) {
+	if !errors.Is(err, ErrUserNotConnected) {
 		if err != nil {
 			log.Println("Failed to check in database:", err)
 		} else if connectedHandle != "" {
@@ -214,7 +214,7 @@ func (s *authService) startAuthCheck(handle string, contID int, problemIdx strin
 	go func() {
 		for {
 			// Stop if elapsed time has exceeded the timeout limit
-			if time.Now().Unix()-startTime > s.timeout.Unix() {
+			if time.Now().Unix()-startTime > int64(s.timeout.Seconds()) {
 				resultChan <- false
 				close(resultChan)
 				return
