@@ -301,12 +301,12 @@ func (c *client) checkUserExistence(handle string) (exists bool, err error) {
 }
 
 func responseCodeCheck(res *http.Response) error {
-	// Status code 4**
-	if res.StatusCode/100 == 4 {
+	switch res.StatusCode / 100 {
+	case 4:
 		return fmt.Errorf("%w: %s", ErrClientIssue, res.Status)
-	} else if res.StatusCode/100 == 5 {
+	case 5:
 		return fmt.Errorf("%w: %s", ErrCodeforcesIssue, res.Status)
+	default:
+		return nil
 	}
-
-	return nil
 }
