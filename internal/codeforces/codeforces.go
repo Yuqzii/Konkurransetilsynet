@@ -49,7 +49,7 @@ func NewHandler(db Repository, discord *discordgo.Session, client api, guilds []
 
 	h.auth = newAuthService(db, discord, client)
 
-	h.leaderboard = newLeaderboardService(discord, client, &h)
+	h.leaderboard = newLeaderboardService(discord, client, db, &h)
 
 	if err := h.Pinger.updatePingData(); err != nil {
 		return nil, fmt.Errorf("initializing ping guild data: %w", err)

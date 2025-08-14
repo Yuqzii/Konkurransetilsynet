@@ -32,8 +32,8 @@ type lbService struct {
 	mu   sync.RWMutex
 }
 
-func newLeaderboardService(discord *discordgo.Session, client api, guilds guildProvider) *lbService {
-	return &lbService{discord: discord, client: client, guilds: guilds}
+func newLeaderboardService(discord *discordgo.Session, client api, db Repository, guilds guildProvider) *lbService {
+	return &lbService{discord: discord, client: client, db: db, guilds: guilds}
 }
 
 // Sends a leaderboard message for every guild the bot is in.
