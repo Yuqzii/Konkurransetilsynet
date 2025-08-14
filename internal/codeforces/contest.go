@@ -26,13 +26,35 @@ type contestService struct {
 	discord *discordgo.Session
 	client  api
 
+	contestUpdateInterval time.Duration
+
 	contests  []*contest
 	mu        sync.RWMutex
 	listeners []contestEndListener
 }
 
-func newContestService(discord *discordgo.Session, client api) *contestService {
-	return &contestService{discord: discord, client: client}
+type contestOption func(*contestService)
+
+func newContestService(discord *discordgo.Session, client api, opts ...contestOption) *contestService {
+	const defaultContestUpdateInterval time.Duration = 1 * time.Hour
+
+	s := &contestService{
+		discord:               discord,
+		client:                client,
+		contestUpdateInterval: defaultContestUpdateInterval,
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
+}
+
+func WithContestUpdateInterval(interval time.Duration) contestOption {
+	return func(s *contestService) {
+		s.contestUpdateInterval = interval
+	}
 }
 
 func (s *contestService) StartContestUpdate(interval time.Duration) {
