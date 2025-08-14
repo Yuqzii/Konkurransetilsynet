@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -68,7 +69,8 @@ func main() {
 		}
 	}()
 
-	cf, err := codeforces.New(database.DBConn, session, session.State.Guilds)
+	cfClient := codeforces.NewClient(http.DefaultClient, "https://codeforces.com/api/")
+	cf, err := codeforces.NewHandler(database.DBConn, session, cfClient, session.State.Guilds)
 	if err != nil {
 		log.Fatal("Failed to create Codeforces handler:", err)
 	}

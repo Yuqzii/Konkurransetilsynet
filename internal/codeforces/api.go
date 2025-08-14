@@ -8,6 +8,24 @@ import (
 	"net/http"
 )
 
+type api interface {
+	getContests() ([]*contest, error)
+	getProblems() ([]problem, error)
+	getSubmissions(handle string, count int) ([]submission, error)
+	getRating(handle string) (*ratingChange, error)
+	hasUpdatedRating(c *contest) (bool, error)
+	checkUserExistence(handle string) (bool, error)
+}
+
+type client struct {
+	client *http.Client
+	url    string
+}
+
+func NewClient(httpClient *http.Client, url string) *client {
+	return &client{client: httpClient, url: url}
+}
+
 type contest struct {
 	ID                    uint32 `json:"id"`
 	Name                  string `json:"name"`
@@ -64,8 +82,9 @@ type ratingChangeAPIReturn struct {
 }
 
 // Gets all contests from the Codeforces API
-func getContests() (contests []*contest, err error) {
-	res, err := http.Get("https://codeforces.com/api/contest.list")
+func (c *client) getContests() (contests []*contest, err error) {
+	endpoint := "contest.list"
+	res, err := c.client.Get(c.url + endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -95,8 +114,9 @@ func getContests() (contests []*contest, err error) {
 }
 
 // Returns all problems from the Codeforces API
-func getProblems() (problems []problem, err error) {
-	res, err := http.Get("https://codeforces.com/api/problemset.problems")
+func (c *client) getProblems() (problems []problem, err error) {
+	endpoint := "problemset.problems"
+	res, err := c.client.Get(c.url + endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -127,9 +147,9 @@ func getProblems() (problems []problem, err error) {
 	return apiStruct.Result.Problems, err
 }
 
-func getSubmissions(handle string, count int) (submissions []submission, err error) {
-	apiStr := fmt.Sprintf("https://codeforces.com/api/user.status?handle=%s&from=1&count=%d", handle, count)
-	res, err := http.Get(apiStr)
+func (c *client) getSubmissions(handle string, count int) (submissions []submission, err error) {
+	endpoint := fmt.Sprintf("user.status?handle=%s&from=1&count=%d", handle, count)
+	res, err := c.client.Get(c.url + endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -156,9 +176,9 @@ func getSubmissions(handle string, count int) (submissions []submission, err err
 	return apiStruct.Submissions, err
 }
 
-func getRating(handle string) (rating *ratingChange, err error) {
-	apiStr := fmt.Sprintf("https://codeforces.com/api/user.rating?handle=%s", handle)
-	res, err := http.Get(apiStr)
+func (c *client) getRating(handle string) (rating *ratingChange, err error) {
+	endpoint := fmt.Sprintf("user.rating?handle=%s", handle)
+	res, err := c.client.Get(c.url + endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -180,9 +200,9 @@ func getRating(handle string) (rating *ratingChange, err error) {
 	return &apiReturn.Result[len(apiReturn.Result)-1], err
 }
 
-func hasUpdatedRating(c *contest) (updated bool, err error) {
-	apiStr := fmt.Sprintf("https://codeforces.com/api/contest.ratingChanges?contestId=%d", c.ID)
-	res, err := http.Get(apiStr)
+func (c *client) hasUpdatedRating(contest *contest) (updated bool, err error) {
+	endpoint := fmt.Sprintf("contest.ratingChanges?contestId=%d", contest.ID)
+	res, err := c.client.Get(c.url + endpoint)
 	if err != nil {
 		return false, fmt.Errorf("getting rating change from Codeforces api: %w", err)
 	}
@@ -205,13 +225,13 @@ func hasUpdatedRating(c *contest) (updated bool, err error) {
 	return len(api.Result) != 0, err
 }
 
-func checkUserExistence(handle string) (exists bool, err error) {
+func (c *client) checkUserExistence(handle string) (exists bool, err error) {
 	type userInfo struct {
 		Status  string `json:"status"`
 		Comment string `json:"comment,omitempty"`
 	}
-	apiStr := fmt.Sprintf("https://codeforces.com/api/user.info?handles=%s&checkHistoricHandles=false", handle)
-	res, err := http.Get(apiStr)
+	endpoint := fmt.Sprintf("user.info?handles=%s&checkHistoricHandles=false", handle)
+	res, err := c.client.Get(c.url + endpoint)
 	if err != nil {
 		return false, fmt.Errorf("failed to call Codeforces user.info api: %w", err)
 	}

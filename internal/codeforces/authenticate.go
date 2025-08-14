@@ -25,10 +25,13 @@ const (
 type authService struct {
 	db      *pgxpool.Pool
 	discord *discordgo.Session
+	client  api
+
+	timeout time.Time
 }
 
-func newAuthService(db *pgxpool.Pool, discord *discordgo.Session) *authService {
-	return &authService{db: db, discord: discord}
+func newAuthService(db *pgxpool.Pool, discord *discordgo.Session, client api) *authService {
+	return &authService{db: db, discord: discord, client: client}
 }
 
 func (s *authService) authCommand(args []string, m *discordgo.MessageCreate) error {
@@ -56,7 +59,7 @@ func (s *authService) authCommand(args []string, m *discordgo.MessageCreate) err
 		}
 	}
 
-	userExists, err := checkUserExistence(handle)
+	userExists, err := s.client.checkUserExistence(handle)
 	if err != nil {
 		return fmt.Errorf("failed to check existence of Codeforces user '%s': %w", handle, err)
 	}
@@ -90,7 +93,7 @@ func (s *authService) onUserNotExist(handle string, m *discordgo.MessageCreate) 
 
 func (s *authService) authenticate(handle string, m *discordgo.MessageCreate) error {
 	// Get random problem with a rating <= 1500
-	problems, err := getProblems()
+	problems, err := s.client.getProblems()
 	if err != nil {
 		return fmt.Errorf("getting problems from Codeforces API: %w", err)
 	}
@@ -119,7 +122,7 @@ func (s *authService) authenticate(handle string, m *discordgo.MessageCreate) er
 	}
 
 	authChan := make(chan bool)
-	startAuthCheck(handle, prob.ContestID, prob.Index, authTimeoutSeconds, authChan)
+	s.startAuthCheck(handle, prob.ContestID, prob.Index, authChan)
 	success := <-authChan
 	if success {
 		err = s.onAuthSuccess(handle, m)
@@ -208,6 +211,33 @@ func (s *authService) onAuthFail(handle string, prob *problem, m *discordgo.Mess
 	return nil
 }
 
+func (s *authService) startAuthCheck(handle string, contID int, problemIdx string, resultChan chan<- bool) {
+	startTime := time.Now().Unix()
+	log.Printf("Starting Codeforces authentication check for user with handle '%s'.", handle)
+	go func() {
+		for {
+			// Stop if elapsed time has exceeded the timeout limit
+			if time.Now().Unix()-startTime > s.timeout.Unix() {
+				resultChan <- false
+				close(resultChan)
+				return
+			}
+			time.Sleep(submissionCheckInteval)
+			// Get submissions and check if any of them match the criteria
+			subs, err := s.client.getSubmissions(handle, submissionCheckCount)
+			if err != nil {
+				log.Printf("Failed to get submissions from user '%s': %v, retrying...", handle, err)
+				continue
+			}
+			if checkSubmissions(subs, startTime, contID, problemIdx) {
+				resultChan <- true
+				close(resultChan)
+				return
+			}
+		}
+	}()
+}
+
 // Filters problems based on the f function parameter
 func filterProblems(problems []problem, f func(*problem) bool) (result []problem) {
 	for _, problem := range problems {
@@ -225,33 +255,6 @@ func getRandomProblem(problems []problem) (*problem, error) {
 	}
 	prob := &problems[rand.Intn(len(problems))]
 	return prob, nil
-}
-
-func startAuthCheck(handle string, contID int, problemIdx string, timeoutSeconds int, resultChan chan<- bool) {
-	startTime := time.Now().Unix()
-	log.Printf("Starting Codeforces authentication check for user with handle '%s'.", handle)
-	go func() {
-		for {
-			// Stop if elapsed time has exceeded the timeout limit
-			if time.Now().Unix()-startTime > int64(timeoutSeconds) {
-				resultChan <- false
-				close(resultChan)
-				return
-			}
-			time.Sleep(submissionCheckInteval)
-			// Get submissions and check if any of them match the criteria
-			subs, err := getSubmissions(handle, submissionCheckCount)
-			if err != nil {
-				log.Printf("Failed to get submissions from user '%s': %v, retrying...", handle, err)
-				continue
-			}
-			if checkSubmissions(subs, startTime, contID, problemIdx) {
-				resultChan <- true
-				close(resultChan)
-				return
-			}
-		}
-	}()
 }
 
 func checkSubmissions(subs []submission, startTime int64, contID int, problemIdx string) bool {

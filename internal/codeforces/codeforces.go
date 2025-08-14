@@ -23,9 +23,10 @@ type Handler struct {
 	db      *pgxpool.Pool
 	discord *discordgo.Session
 
+	client   api
 	Contests *contestService
 	Pinger   *contestPinger
-	Auth     *authService
+	auth     *authService
 
 	guilds []*discordgo.Guild
 	mu     sync.RWMutex
@@ -34,15 +35,15 @@ type Handler struct {
 	lbMu        sync.RWMutex
 }
 
-func New(db *pgxpool.Pool, discord *discordgo.Session, guilds []*discordgo.Guild) (*Handler, error) {
-	h := Handler{db: db, discord: discord, guilds: guilds}
+func NewHandler(db *pgxpool.Pool, discord *discordgo.Session, client api, guilds []*discordgo.Guild) (*Handler, error) {
+	h := Handler{db: db, discord: discord, client: client, guilds: guilds}
 
-	h.Contests = newContestService(discord)
+	h.Contests = newContestService(discord, client)
 	h.Contests.addListener(&h)
 
 	h.Pinger = newPinger(discord, h.Contests, &h)
 
-	h.Auth = newAuthService(db, discord)
+	h.auth = newAuthService(db, discord, client)
 
 	if err := h.Pinger.updatePingData(); err != nil {
 		return nil, fmt.Errorf("initializing ping guild data: %w", err)
@@ -72,7 +73,7 @@ func (h *Handler) HandleCommand(args []string, m *discordgo.MessageCreate) error
 			return errors.Join(errors.New("adding debug contest failed,"), err)
 		}
 	case "authenticate":
-		err := h.Auth.authCommand(args, m)
+		err := h.auth.authCommand(args, m)
 		if err != nil {
 			return fmt.Errorf("authentication command failed: %w", err)
 		}

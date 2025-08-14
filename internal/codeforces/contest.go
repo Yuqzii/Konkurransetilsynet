@@ -24,13 +24,14 @@ type contestProvider interface {
 
 type contestService struct {
 	discord   *discordgo.Session
+	client    api
 	contests  []*contest
 	mu        sync.RWMutex
 	listeners []contestEndListener
 }
 
-func newContestService(discord *discordgo.Session) *contestService {
-	return &contestService{discord: discord}
+func newContestService(discord *discordgo.Session, client api) *contestService {
+	return &contestService{discord: discord, client: client}
 }
 
 func (s *contestService) StartContestUpdate(interval time.Duration) {
@@ -92,7 +93,7 @@ func (s *contestService) updateContests() error {
 		}
 	}
 
-	contests, err := getContests()
+	contests, err := s.client.getContests()
 	if err != nil {
 		return err
 	}
