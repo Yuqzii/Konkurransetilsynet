@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 )
 
 type api interface {
@@ -148,8 +150,12 @@ func (c *client) getProblems() (problems []problem, err error) {
 }
 
 func (c *client) getSubmissions(handle string, count int) (submissions []submission, err error) {
-	endpoint := fmt.Sprintf("user.status?handle=%s&from=1&count=%d", handle, count)
-	res, err := c.client.Get(c.url + endpoint)
+	endpoint := "user.status?"
+	params := url.Values{}
+	params.Set("handle", handle)
+	params.Set("from", "1")
+	params.Set("count", strconv.Itoa(count))
+	res, err := c.client.Get(c.url + endpoint + params.Encode())
 	if err != nil {
 		return nil, err
 	}
@@ -177,8 +183,10 @@ func (c *client) getSubmissions(handle string, count int) (submissions []submiss
 }
 
 func (c *client) getRating(handle string) (rating *ratingChange, err error) {
-	endpoint := fmt.Sprintf("user.rating?handle=%s", handle)
-	res, err := c.client.Get(c.url + endpoint)
+	endpoint := "user.rating?"
+	params := url.Values{}
+	params.Set("handle", handle)
+	res, err := c.client.Get(c.url + endpoint + params.Encode())
 	if err != nil {
 		return nil, err
 	}
@@ -201,8 +209,10 @@ func (c *client) getRating(handle string) (rating *ratingChange, err error) {
 }
 
 func (c *client) hasUpdatedRating(contest *contest) (updated bool, err error) {
-	endpoint := fmt.Sprintf("contest.ratingChanges?contestId=%d", contest.ID)
-	res, err := c.client.Get(c.url + endpoint)
+	endpoint := "contest.ratingChanges?"
+	params := url.Values{}
+	params.Set("contestId", strconv.FormatUint(uint64(contest.ID), 10))
+	res, err := c.client.Get(c.url + endpoint + params.Encode())
 	if err != nil {
 		return false, fmt.Errorf("getting rating change from Codeforces api: %w", err)
 	}
@@ -230,8 +240,12 @@ func (c *client) checkUserExistence(handle string) (exists bool, err error) {
 		Status  string `json:"status"`
 		Comment string `json:"comment,omitempty"`
 	}
-	endpoint := fmt.Sprintf("user.info?handles=%s&checkHistoricHandles=false", handle)
-	res, err := c.client.Get(c.url + endpoint)
+
+	endpoint := "user.info?"
+	params := url.Values{}
+	params.Set("handles", handle)
+	params.Set("checkHistoricHandles", "false")
+	res, err := c.client.Get(c.url + endpoint + params.Encode())
 	if err != nil {
 		return false, fmt.Errorf("failed to call Codeforces user.info api: %w", err)
 	}
