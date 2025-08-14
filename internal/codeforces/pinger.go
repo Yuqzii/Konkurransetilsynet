@@ -16,22 +16,63 @@ type pingData struct {
 }
 
 type contestPinger struct {
-	discord   *discordgo.Session
-	contests  contestProvider
-	guilds    guildProvider
+	discord  *discordgo.Session
+	contests contestProvider
+	guilds   guildProvider
+
+	pingTime        time.Duration
+	pingChannelName string
+	pingRoleName    string
+
 	pingData  []pingData
 	pingedIDs map[uint32]struct{}
 	mu        sync.RWMutex
 }
 
-const (
-	pingTime        uint32 = 1 * 3600 // 1 hour
-	pingChannelName string = "contest-pings"
-	pingRoleName    string = "Contest Ping"
-)
+type pingerOption func(*contestPinger)
 
-func newPinger(d *discordgo.Session, c contestProvider, g guildProvider) *contestPinger {
-	return &contestPinger{discord: d, contests: c, guilds: g, pingedIDs: make(map[uint32]struct{})}
+func newPinger(discord *discordgo.Session, contests contestProvider,
+	guilds guildProvider, opts ...pingerOption) *contestPinger {
+
+	const (
+		defaultPingTime        time.Duration = 1 * time.Hour
+		defaultPingChannelName string        = "contest-pings"
+		defaultPingRoleName    string        = "Contest Ping"
+	)
+
+	p := &contestPinger{
+		discord:         discord,
+		contests:        contests,
+		guilds:          guilds,
+		pingedIDs:       make(map[uint32]struct{}),
+		pingTime:        defaultPingTime,
+		pingChannelName: defaultPingChannelName,
+		pingRoleName:    defaultPingRoleName,
+	}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p
+}
+
+func WithPingTime(t time.Duration) pingerOption {
+	return func(p *contestPinger) {
+		p.pingTime = t
+	}
+}
+
+func WithPingChannelName(name string) pingerOption {
+	return func(p *contestPinger) {
+		p.pingChannelName = name
+	}
+}
+
+func WithPingRoleName(name string) pingerOption {
+	return func(p *contestPinger) {
+		p.pingRoleName = name
+	}
 }
 
 // Start goroutine that checks whether it should issue a ping for upcoming contests
@@ -54,7 +95,7 @@ func (p *contestPinger) checkContestPing() error {
 	curTime := uint32(time.Now().Unix())
 	contests := p.contests.getContests()
 	for _, c := range contests {
-		shouldPing := c.StartTimeSeconds-curTime <= pingTime
+		shouldPing := c.StartTimeSeconds-curTime <= uint32(p.pingTime.Seconds())
 		_, isPinged := p.pingedIDs[c.ID]
 		if shouldPing && !isPinged {
 			err := p.pingContest(c)
@@ -92,12 +133,12 @@ func (p *contestPinger) pingContest(c *contest) error {
 
 func (p *contestPinger) updatePingData() error {
 	guilds := p.guilds.getGuilds()
-	channels, err := utils.CreateChannelIfNotExist(p.discord, pingChannelName, guilds)
+	channels, err := utils.CreateChannelIfNotExist(p.discord, p.pingChannelName, guilds)
 	if err != nil {
 		return fmt.Errorf("finding/creating ping channel: %w", err)
 	}
 
-	roles, err := utils.CreateRoleIfNotExists(p.discord, pingRoleName, guilds)
+	roles, err := utils.CreateRoleIfNotExists(p.discord, p.pingRoleName, guilds)
 	if err != nil {
 		return fmt.Errorf("finding/creating ping role: %w", err)
 	}
