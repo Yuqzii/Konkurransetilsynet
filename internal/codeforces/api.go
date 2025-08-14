@@ -28,6 +28,8 @@ func NewClient(httpClient *http.Client, url string) *client {
 	return &client{client: httpClient, url: url}
 }
 
+var ErrNoRating = errors.New("the user does not have a rating")
+
 type contest struct {
 	ID                    uint32 `json:"id"`
 	Name                  string `json:"name"`
@@ -203,6 +205,10 @@ func (c *client) getRating(handle string) (rating *ratingChange, err error) {
 	err = json.Unmarshal(body, &apiReturn)
 	if apiReturn.Status == "FAILED" {
 		return nil, errors.New(apiReturn.Comment)
+	}
+
+	if len(apiReturn.Result) == 0 {
+		return nil, ErrNoRating
 	}
 
 	return &apiReturn.Result[len(apiReturn.Result)-1], err
