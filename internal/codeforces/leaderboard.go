@@ -28,12 +28,38 @@ type lbService struct {
 	db      Repository
 	guilds  guildProvider
 
+	ratingUpdateInterval time.Duration
+
 	data []lbGuildData
 	mu   sync.RWMutex
 }
 
-func newLeaderboardService(discord *discordgo.Session, client api, db Repository, guilds guildProvider) *lbService {
-	return &lbService{discord: discord, client: client, db: db, guilds: guilds}
+type lbOption func(*lbService)
+
+func newLeaderboardService(discord *discordgo.Session, client api, db Repository,
+	guilds guildProvider, opts ...lbOption) *lbService {
+
+	const defaultRatingUpdateInterval time.Duration = 30 * time.Minute
+
+	s := &lbService{
+		discord:              discord,
+		client:               client,
+		db:                   db,
+		guilds:               guilds,
+		ratingUpdateInterval: defaultRatingUpdateInterval,
+	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
+}
+
+func WithRatingUpdateInterval(interval time.Duration) lbOption {
+	return func(s *lbService) {
+		s.ratingUpdateInterval = interval
+	}
 }
 
 // Sends a leaderboard message for every guild the bot is in.
@@ -84,14 +110,14 @@ func (s *lbService) sendLeaderboardMessage(guildID string, channelID string, c *
 }
 
 // Sends true to the returned channel when the ratings have been updated
-func (s *lbService) startRatingUpdateCheck(c *contest, interval time.Duration) <-chan bool {
+func (s *lbService) startRatingUpdateCheck(c *contest) <-chan bool {
 	updatedChan := make(chan bool)
 	go func() {
 		errCnt := 0
 		const maxErrs uint8 = 3
 
 		for {
-			time.Sleep(interval)
+			time.Sleep(s.ratingUpdateInterval)
 			updated, err := s.client.hasUpdatedRating(c)
 			if err != nil {
 				errCnt++

@@ -11,10 +11,6 @@ import (
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
-const (
-	ratingUpdateCheckInterval time.Duration = 30 * time.Minute
-)
-
 type guildProvider interface {
 	getGuilds() []*discordgo.Guild
 }
@@ -49,7 +45,7 @@ func NewHandler(db Repository, discord *discordgo.Session, client api, guilds []
 
 	h.auth = newAuthService(db, discord, client)
 
-	h.leaderboard = newLeaderboardService(discord, client, db, &h)
+	h.leaderboard = newLeaderboardService(discord, client, db, &h, WithRatingUpdateInterval(30*time.Minute))
 
 	if err := h.Pinger.updatePingData(); err != nil {
 		return nil, fmt.Errorf("initializing ping guild data: %w", err)
@@ -108,7 +104,7 @@ func (h *Handler) getGuilds() []*discordgo.Guild {
 }
 
 func (h *Handler) onContestEnd(c *contest) {
-	ratingUpdates := h.leaderboard.startRatingUpdateCheck(c, ratingUpdateCheckInterval)
+	ratingUpdates := h.leaderboard.startRatingUpdateCheck(c)
 	for updated := range ratingUpdates {
 		if updated {
 			h.leaderboard.sendLeaderboardMessageAll(c)
