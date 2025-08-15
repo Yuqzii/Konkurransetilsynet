@@ -62,7 +62,7 @@ func (h *Handler) HandleCommand(args []string, m *discordgo.MessageCreate) error
 	switch args[1] {
 	case "contests":
 		if err := h.Contests.updateContests(); err != nil {
-			h.checkAPIError(err, m.ChannelID)
+			err = errors.Join(err, h.checkAPIError(err, m.ChannelID))
 			return fmt.Errorf("failed updating upcoming contests: %w", err)
 		}
 
@@ -73,13 +73,13 @@ func (h *Handler) HandleCommand(args []string, m *discordgo.MessageCreate) error
 	case "addDebugContest":
 		err := h.Contests.addDebugContest(args, m)
 		if err != nil {
-			h.checkAPIError(err, m.ChannelID)
+			err = errors.Join(err, h.checkAPIError(err, m.ChannelID))
 			return fmt.Errorf("adding debug contest: %w", err)
 		}
 	case "authenticate":
 		err := h.auth.authCommand(args, m)
 		if err != nil {
-			h.checkAPIError(err, m.ChannelID)
+			err = errors.Join(err, h.checkAPIError(err, m.ChannelID))
 			return fmt.Errorf("authentication command failed: %w", err)
 		}
 	case "leaderboard":
@@ -87,7 +87,7 @@ func (h *Handler) HandleCommand(args []string, m *discordgo.MessageCreate) error
 		c := h.Contests.addContest("Leaderboard Test Contest", 69, uint32(time.Now().Unix()))
 		err := h.leaderboard.sendLeaderboardMessage(m.GuildID, m.ChannelID, c)
 		if err != nil {
-			h.checkAPIError(err, m.ChannelID)
+			err = errors.Join(err, h.checkAPIError(err, m.ChannelID))
 			return fmt.Errorf("sending test leaderboard message: %w", err)
 		}
 	default:
@@ -116,22 +116,26 @@ func (h *Handler) onContestEnd(c *contest) {
 	}
 }
 
-func (h *Handler) checkAPIError(err error, channelID string) {
-	if errors.Is(err, ErrCodeforcesIssue) {
-		h.sendCodeforcesIssueMessage(channelID)
-	} else if errors.Is(err, ErrClientIssue) {
-		h.sendClientIssueMessage(channelID)
+func (h *Handler) checkAPIError(checkErr error, channelID string) error {
+	var err error
+	if errors.Is(checkErr, ErrCodeforcesIssue) {
+		err = h.sendCodeforcesIssueMessage(channelID)
+	} else if errors.Is(checkErr, ErrClientIssue) {
+		err = h.sendClientIssueMessage(channelID)
 	}
+	return err
 }
 
-func (h *Handler) sendCodeforcesIssueMessage(channelID string) {
+func (h *Handler) sendCodeforcesIssueMessage(channelID string) error {
 	msg := "There is an issue with the Codeforces servers."
-	h.discord.ChannelMessageSend(channelID, msg)
+	_, err := h.discord.ChannelMessageSend(channelID, msg)
+	return err
 }
 
-func (h *Handler) sendClientIssueMessage(channelID string) {
+func (h *Handler) sendClientIssueMessage(channelID string) error {
 	msg := "There is an issue with our API client.\n" +
 		"Please open an issue on [Github](https://github.com/Yuqzii/Konkurransetilsynet/issues) " +
 		"or contact the developers."
-	h.discord.ChannelMessageSend(channelID, msg)
+	_, err := h.discord.ChannelMessageSend(channelID, msg)
+	return err
 }
