@@ -15,8 +15,8 @@ import (
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
-type contestEndListener interface {
-	onContestEnd(c *contest)
+type contestFinishListener interface {
+	onContestFinish(c *contest)
 }
 
 type contestProvider interface {
@@ -31,7 +31,7 @@ type contestService struct {
 
 	contests  []*contest
 	mu        sync.RWMutex
-	listeners []contestEndListener
+	listeners []contestFinishListener
 }
 
 type contestOption func(*contestService)
@@ -70,7 +70,7 @@ func (s *contestService) StartContestUpdate(interval time.Duration) {
 	}()
 }
 
-func (s *contestService) addListener(l contestEndListener) {
+func (s *contestService) addListener(l contestFinishListener) {
 	s.listeners = append(s.listeners, l)
 }
 
@@ -113,7 +113,7 @@ func (s *contestService) updateContests() error {
 	for _, c := range s.contests {
 		hasEnded := t >= int64(c.StartTimeSeconds)+int64(c.DurationSeconds)
 		if hasEnded {
-			go s.onContestEnd(*c)
+			go s.onContestFinish(*c)
 		}
 	}
 
@@ -122,13 +122,10 @@ func (s *contestService) updateContests() error {
 		return err
 	}
 
-	contests, err = filterUpcoming(contests)
-	if err != nil {
-		return err
-	}
+	upcoming := filterUpcoming(contests)
 
 	s.mu.Lock()
-	s.contests = contests
+	s.contests = upcoming
 	s.mu.Unlock()
 	return nil
 }
@@ -206,7 +203,7 @@ func (s *contestService) addDebugContest(args []string, m *discordgo.MessageCrea
 }
 
 // Filters out contests that have ended and sorts the result
-func filterUpcoming(contests []*contest) ([]*contest, error) {
+func filterUpcoming(contests []*contest) []*contest {
 	// Find all current or future contests
 	filtered := filterContests(contests, func(contest *contest) bool {
 		return contest.Phase == "BEFORE" || contest.Phase == "CODING"
@@ -217,7 +214,7 @@ func filterUpcoming(contests []*contest) ([]*contest, error) {
 		return filtered[i].StartTimeSeconds < filtered[j].StartTimeSeconds
 	})
 
-	return filtered, nil
+	return filtered
 }
 
 // Filters contests based on the f function argument
@@ -230,8 +227,8 @@ func filterContests(contests []*contest, f func(*contest) bool) (result []*conte
 	return result
 }
 
-func (s *contestService) onContestEnd(c contest) {
+func (s *contestService) onContestFinish(c contest) {
 	for _, l := range s.listeners {
-		l.onContestEnd(&c)
+		l.onContestFinish(&c)
 	}
 }
