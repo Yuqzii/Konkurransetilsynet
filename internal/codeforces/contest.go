@@ -1,6 +1,7 @@
 package codeforces
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -116,7 +117,7 @@ func (s *contestService) updateContests() error {
 		}
 	}
 
-	contests, err := s.client.getContests()
+	contests, err := s.client.getContests(context.TODO())
 	if err != nil {
 		return err
 	}

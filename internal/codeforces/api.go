@@ -1,6 +1,7 @@
 package codeforces
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,24 +9,45 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"golang.org/x/time/rate"
 )
 
 type api interface {
-	getContests() ([]*contest, error)
-	getProblems() ([]problem, error)
-	getSubmissions(handle string, count uint16) ([]submission, error)
-	getRating(handle string) (*ratingChange, error)
-	hasUpdatedRating(c *contest) (bool, error)
-	checkUserExistence(handle string) (bool, error)
+	getContests(ctx context.Context) ([]*contest, error)
+	getProblems(ctx context.Context) ([]problem, error)
+	getSubmissions(ctx context.Context, handle string, count uint16) ([]submission, error)
+	getRating(ctx context.Context, handle string) (*ratingChange, error)
+	hasUpdatedRating(ctx context.Context, c *contest) (bool, error)
+	checkUserExistence(ctx context.Context, handle string) (bool, error)
 }
 
 type client struct {
-	client *http.Client
-	url    string
+	client  *http.Client
+	limiter *rate.Limiter
+	url     string
 }
 
-func NewClient(httpClient *http.Client, url string) *client {
-	return &client{client: httpClient, url: url}
+func NewClient(httpClient *http.Client, requestsPerSecond float64, burst int, url string) *client {
+	return &client{
+		client:  httpClient,
+		limiter: rate.NewLimiter(rate.Limit(requestsPerSecond), burst),
+		url:     url,
+	}
+}
+
+func (c *client) makeRequest(ctx context.Context, method, endpoint string) (*http.Response, error) {
+	// Wait for rate limiter permission
+	if err := c.limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, c.url+endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	return c.client.Do(req)
 }
 
 var ErrNoRating = errors.New("the user does not have a rating")
@@ -88,9 +110,9 @@ type ratingChangeAPIReturn struct {
 }
 
 // Gets all contests from the Codeforces API
-func (c *client) getContests() (contests []*contest, err error) {
+func (c *client) getContests(ctx context.Context) (contests []*contest, err error) {
 	endpoint := "contest.list"
-	res, err := c.client.Get(c.url + endpoint)
+	res, err := c.makeRequest(ctx, "GET", endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -124,9 +146,9 @@ func (c *client) getContests() (contests []*contest, err error) {
 }
 
 // Returns all problems from the Codeforces API
-func (c *client) getProblems() (problems []problem, err error) {
+func (c *client) getProblems(ctx context.Context) (problems []problem, err error) {
 	endpoint := "problemset.problems"
-	res, err := c.client.Get(c.url + endpoint)
+	res, err := c.makeRequest(ctx, "GET", endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -161,13 +183,15 @@ func (c *client) getProblems() (problems []problem, err error) {
 	return apiStruct.Result.Problems, err
 }
 
-func (c *client) getSubmissions(handle string, count uint16) (submissions []submission, err error) {
+func (c *client) getSubmissions(ctx context.Context, handle string,
+	count uint16) (submissions []submission, err error) {
+
 	endpoint := "user.status?"
 	params := url.Values{}
 	params.Set("handle", handle)
 	params.Set("from", "1")
 	params.Set("count", strconv.FormatUint(uint64(count), 10))
-	res, err := c.client.Get(c.url + endpoint + params.Encode())
+	res, err := c.makeRequest(ctx, "GET", endpoint+params.Encode())
 	if err != nil {
 		return nil, err
 	}
@@ -198,11 +222,11 @@ func (c *client) getSubmissions(handle string, count uint16) (submissions []subm
 	return apiStruct.Submissions, err
 }
 
-func (c *client) getRating(handle string) (rating *ratingChange, err error) {
+func (c *client) getRating(ctx context.Context, handle string) (rating *ratingChange, err error) {
 	endpoint := "user.rating?"
 	params := url.Values{}
 	params.Set("handle", handle)
-	res, err := c.client.Get(c.url + endpoint + params.Encode())
+	res, err := c.makeRequest(ctx, "GET", endpoint+params.Encode())
 	if err != nil {
 		return nil, err
 	}
@@ -232,11 +256,11 @@ func (c *client) getRating(handle string) (rating *ratingChange, err error) {
 	return &apiReturn.Result[len(apiReturn.Result)-1], err
 }
 
-func (c *client) hasUpdatedRating(contest *contest) (updated bool, err error) {
+func (c *client) hasUpdatedRating(ctx context.Context, contest *contest) (updated bool, err error) {
 	endpoint := "contest.ratingChanges?"
 	params := url.Values{}
 	params.Set("contestId", strconv.FormatUint(uint64(contest.ID), 10))
-	res, err := c.client.Get(c.url + endpoint + params.Encode())
+	res, err := c.makeRequest(ctx, "GET", endpoint+params.Encode())
 	if err != nil {
 		return false, fmt.Errorf("getting rating change from Codeforces api: %w", err)
 	}
@@ -263,7 +287,7 @@ func (c *client) hasUpdatedRating(contest *contest) (updated bool, err error) {
 	return len(api.Result) != 0, err
 }
 
-func (c *client) checkUserExistence(handle string) (exists bool, err error) {
+func (c *client) checkUserExistence(ctx context.Context, handle string) (exists bool, err error) {
 	type userInfo struct {
 		Status  string `json:"status"`
 		Comment string `json:"comment,omitempty"`
@@ -273,7 +297,7 @@ func (c *client) checkUserExistence(handle string) (exists bool, err error) {
 	params := url.Values{}
 	params.Set("handles", handle)
 	params.Set("checkHistoricHandles", "false")
-	res, err := c.client.Get(c.url + endpoint + params.Encode())
+	res, err := c.makeRequest(ctx, "GET", endpoint+params.Encode())
 	if err != nil {
 		return false, fmt.Errorf("failed to call Codeforces user.info api: %w", err)
 	}

@@ -100,7 +100,7 @@ func (s *authService) authCommand(args []string, m *discordgo.MessageCreate) err
 		}
 	}
 
-	userExists, err := s.client.checkUserExistence(handle)
+	userExists, err := s.client.checkUserExistence(context.TODO(), handle)
 	if err != nil {
 		return fmt.Errorf("failed to check existence of Codeforces user '%s': %w", handle, err)
 	}
@@ -134,7 +134,7 @@ func (s *authService) onUserNotExist(handle string, m *discordgo.MessageCreate) 
 
 func (s *authService) authenticate(handle string, m *discordgo.MessageCreate) error {
 	// Get random problem with a rating <= 1500
-	problems, err := s.client.getProblems()
+	problems, err := s.client.getProblems(context.TODO())
 	if err != nil {
 		return fmt.Errorf("getting problems from Codeforces API: %w", err)
 	}
@@ -265,7 +265,7 @@ func (s *authService) startAuthCheck(handle string, contID int, problemIdx strin
 			}
 			time.Sleep(s.submissionCheckInterval)
 			// Get submissions and check if any of them match the criteria
-			subs, err := s.client.getSubmissions(handle, s.submissionCheckCount)
+			subs, err := s.client.getSubmissions(context.TODO(), handle, s.submissionCheckCount)
 			if err != nil {
 				log.Printf("Failed to get submissions from user '%s': %v, retrying...", handle, err)
 				continue

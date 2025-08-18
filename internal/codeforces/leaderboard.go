@@ -118,7 +118,7 @@ func (s *lbService) startRatingUpdateCheck(c *contest) <-chan bool {
 
 		for {
 			time.Sleep(s.ratingUpdateInterval)
-			updated, err := s.client.hasUpdatedRating(c)
+			updated, err := s.client.hasUpdatedRating(context.TODO(), c)
 			if err != nil {
 				errCnt++
 				log.Printf("Failed to check Codeforces rating update (attempt %d of %d): %s", errCnt, maxErrs, err)
@@ -154,7 +154,7 @@ func (s *lbService) getRatingsInGuild(guildID string) ([]*ratingChange, error) {
 		go func() {
 			defer wg.Done()
 
-			rating, err := s.client.getRating(handles[i])
+			rating, err := s.client.getRating(context.TODO(), handles[i])
 			if err != nil {
 				log.Printf("Getting Codeforces rating from handle %s failed: %s", handles[i], err)
 				return

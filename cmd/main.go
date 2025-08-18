@@ -23,7 +23,10 @@ import (
 )
 
 const (
-	prefix                   string        = "!"
+	prefix string = "!"
+
+	cfAPIRequestsPerSecond   float64       = 0.5
+	cfAPIMaxBurst            int           = 1
 	contestUpdateInterval    time.Duration = 1 * time.Hour
 	contestPingCheckInterval time.Duration = 1 * time.Minute
 
@@ -76,7 +79,8 @@ func main() {
 		}
 	}()
 
-	cfClient := codeforces.NewClient(http.DefaultClient, "https://codeforces.com/api/")
+	cfClient := codeforces.NewClient(http.DefaultClient, cfAPIRequestsPerSecond, cfAPIMaxBurst,
+		"https://codeforces.com/api/")
 	cf, err := codeforces.NewHandler(db, session, cfClient, session.State.Guilds)
 	if err != nil {
 		log.Fatal("Failed to create Codeforces handler:", err)

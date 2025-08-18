@@ -7,6 +7,7 @@ toolchain go1.24.3
 require (
 	github.com/bwmarrin/discordgo v0.28.1
 	github.com/jackc/pgx/v5 v5.7.5
+	golang.org/x/time v0.12.0
 )
 
 require (
