@@ -1,85 +1,85 @@
 package codeforces
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/jackc/pgx/v5"
-	"github.com/yuqzii/konkurransetilsynet/internal/database"
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
 const (
-	channelName string = "cf-leaderboard"
+	lbChannelName string = "cf-leaderboard"
 )
-
-type ratingChangeAPIReturn struct {
-	Status  string         `json:"status"`
-	Comment string         `json:"comment"`
-	Result  []ratingChange `json:"result"`
-}
-
-type ratingChange struct {
-	Handle    string `json:"handle"`
-	OldRating int    `json:"oldRating"`
-	NewRating int    `json:"newRating"`
-	discordID string
-}
 
 type lbGuildData struct {
 	guildID   string
 	channelID string
 }
 
-type lbGuildDataList struct {
+type lbService struct {
+	discord *discordgo.Session
+	client  api
+	db      Repository
+	guilds  guildProvider
+
+	ratingUpdateInterval time.Duration
+
 	data []lbGuildData
 	mu   sync.RWMutex
 }
 
-var guildData lbGuildDataList
+type lbOption func(*lbService)
 
-func updateLeaderboardGuildData(s *discordgo.Session, guilds []*discordgo.Guild) error {
-	channels, err := utils.CreateChannelIfNotExist(s, channelName, guilds)
-	if err != nil {
-		return err
+func newLeaderboardService(discord *discordgo.Session, client api, db Repository,
+	guilds guildProvider, opts ...lbOption) *lbService {
+
+	const defaultRatingUpdateInterval time.Duration = 30 * time.Minute
+
+	s := &lbService{
+		discord:              discord,
+		client:               client,
+		db:                   db,
+		guilds:               guilds,
+		ratingUpdateInterval: defaultRatingUpdateInterval,
 	}
 
-	var newData []lbGuildData
-	for i := range channels {
-		newData = append(newData, lbGuildData{guilds[i].ID, channels[i]})
+	for _, opt := range opts {
+		opt(s)
 	}
 
-	guildData.mu.Lock()
-	guildData.data = newData
-	guildData.mu.Unlock()
-	return nil
+	return s
 }
 
-// @abstract	Sends a leaderboard message for every guild the bot is in.
-func sendLeaderboardMessageAll(s *discordgo.Session, c *contest) {
-	guildData.mu.RLock()
-	defer guildData.mu.RUnlock()
+func WithRatingUpdateInterval(interval time.Duration) lbOption {
+	return func(s *lbService) {
+		s.ratingUpdateInterval = interval
+	}
+}
 
-	for _, data := range guildData.data {
+// Sends a leaderboard message for every guild the bot is in.
+func (s *lbService) sendLeaderboardMessageAll(c *contest) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, data := range s.data {
 		go func() {
-			err := sendLeaderboardMessage(data.guildID, data.channelID, c, s)
+			err := s.sendLeaderboardMessage(data.guildID, data.channelID, c)
 			if err != nil {
-				log.Printf("Error sending leaderboard message to all guilds (guild %s): %s", data.guildID, err)
+				log.Printf("Error when sending leaderboard message to all guilds (guild %s): %s",
+					data.guildID, err)
 			}
 		}()
 	}
 }
 
-func sendLeaderboardMessage(guildID string, channelID string, c *contest, s *discordgo.Session) error {
-	ratings, err := getRatingsInGuild(guildID, s)
+func (s *lbService) sendLeaderboardMessage(guildID string, channelID string, c *contest) error {
+	ratings, err := s.getRatingsInGuild(guildID)
 	if err != nil {
 		return fmt.Errorf("getting ratings in guild %s: %w", guildID, err)
 	}
@@ -88,7 +88,7 @@ func sendLeaderboardMessage(guildID string, channelID string, c *contest, s *dis
 		return ratings[i].NewRating > ratings[j].NewRating
 	})
 
-	guild, err := s.State.Guild(guildID)
+	guild, err := s.discord.State.Guild(guildID)
 	if err != nil {
 		return fmt.Errorf("getting guild of ID %s: %w", guildID, err)
 	}
@@ -101,7 +101,7 @@ func sendLeaderboardMessage(guildID string, channelID string, c *contest, s *dis
 		Content: messageStr,
 		Flags:   discordgo.MessageFlagsSuppressNotifications,
 	}
-	_, err = s.ChannelMessageSendComplex(channelID, &msgData)
+	_, err = s.discord.ChannelMessageSendComplex(channelID, &msgData)
 	if err != nil {
 		return fmt.Errorf("sending leaderboard message: %w", err)
 	}
@@ -110,15 +110,15 @@ func sendLeaderboardMessage(guildID string, channelID string, c *contest, s *dis
 }
 
 // Sends true to the returned channel when the ratings have been updated
-func startRatingUpdateCheck(c *contest, interval time.Duration) <-chan bool {
+func (s *lbService) startRatingUpdateCheck(c *contest) <-chan bool {
 	updatedChan := make(chan bool)
 	go func() {
 		errCnt := 0
 		const maxErrs uint8 = 3
 
 		for {
-			time.Sleep(interval)
-			updated, err := hasUpdatedRating(c)
+			time.Sleep(s.ratingUpdateInterval)
+			updated, err := s.client.hasUpdatedRating(context.TODO(), c)
 			if err != nil {
 				errCnt++
 				log.Printf("Failed to check Codeforces rating update (attempt %d of %d): %s", errCnt, maxErrs, err)
@@ -137,33 +137,8 @@ func startRatingUpdateCheck(c *contest, interval time.Duration) <-chan bool {
 	return updatedChan
 }
 
-func hasUpdatedRating(c *contest) (updated bool, err error) {
-	apiStr := fmt.Sprintf("https://codeforces.com/api/contest.ratingChanges?contestId=%d", c.ID)
-	res, err := http.Get(apiStr)
-	if err != nil {
-		return false, fmt.Errorf("getting rating change from Codeforces api: %w", err)
-	}
-	defer func() {
-		err = errors.Join(err, res.Body.Close())
-	}()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return false, err
-	}
-
-	var api ratingChangeAPIReturn
-	err = json.Unmarshal(body, &api)
-	if api.Status == "FAILED" {
-		return false, errors.New(api.Comment)
-	}
-
-	// Codeforces returns an empty result before the ratings have updated
-	return len(api.Result) != 0, err
-}
-
-func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, error) {
-	handles, ids, err := getCodeforcesInGuild(guildID, s)
+func (s *lbService) getRatingsInGuild(guildID string) ([]*ratingChange, error) {
+	handles, ids, err := s.getCodeforcesInGuild(guildID)
 	if err != nil {
 		return nil, fmt.Errorf("getting Codeforces handles in %s: %w", guildID, err)
 	}
@@ -179,7 +154,7 @@ func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, e
 		go func() {
 			defer wg.Done()
 
-			rating, err := getRating(handles[i])
+			rating, err := s.client.getRating(context.TODO(), handles[i])
 			if err != nil {
 				log.Printf("Getting Codeforces rating from handle %s failed: %s", handles[i], err)
 				return
@@ -202,17 +177,16 @@ func getRatingsInGuild(guildID string, s *discordgo.Session) ([]*ratingChange, e
 	return ratings, nil
 }
 
-func getCodeforcesInGuild(guildID string, s *discordgo.Session) (result []string, discordIDs []string, err error) {
-	guild, err := s.State.Guild(guildID)
+func (s *lbService) getCodeforcesInGuild(guildID string) (result []string, discordIDs []string, err error) {
+	guild, err := s.discord.Guild(guildID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("getting guild from id %s: %w", guildID, err)
 	}
 
 	// Helper lambda to avoid duplicate code in member loop and owner
 	getCodeforcesFromID := func(id string) error {
-		handle, err := database.GetConnectedCodeforces(id)
-		// ErrNoRows expected if the user has not connected their Codeforces
-		if err != nil && err != pgx.ErrNoRows {
+		handle, err := s.db.GetConnectedCodeforces(context.TODO(), id)
+		if err != nil && !errors.Is(err, ErrUserNotConnected) {
 			return fmt.Errorf("getting Codeforces handle of %s: %w", id, err)
 		}
 
@@ -240,26 +214,20 @@ func getCodeforcesInGuild(guildID string, s *discordgo.Session) (result []string
 	return result, discordIDs, nil
 }
 
-func getRating(handle string) (rating *ratingChange, err error) {
-	apiStr := fmt.Sprintf("https://codeforces.com/api/user.rating?handle=%s", handle)
-	res, err := http.Get(apiStr)
+func (s *lbService) updateData() error {
+	guilds := s.guilds.getGuilds()
+	channels, err := utils.CreateChannelIfNotExist(s.discord, lbChannelName, guilds)
 	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		err = errors.Join(err, res.Body.Close())
-	}()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var api ratingChangeAPIReturn
-	err = json.Unmarshal(body, &api)
-	if api.Status == "FAILED" {
-		return nil, errors.New(api.Comment)
+	var newData []lbGuildData
+	for i := range guilds {
+		newData = append(newData, lbGuildData{guilds[i].ID, channels[i]})
 	}
 
-	return &api.Result[len(api.Result)-1], err
+	s.mu.Lock()
+	s.data = newData
+	s.mu.Unlock()
+	return nil
 }

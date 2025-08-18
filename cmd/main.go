@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 	"unicode/utf8"
 
 	codeforces "github.com/yuqzii/konkurransetilsynet/internal/codeforces"
@@ -19,7 +22,19 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-const prefix string = "!"
+const (
+	prefix string = "!"
+
+	cfAPIRequestsPerSecond   float64       = 0.5
+	cfAPIMaxBurst            int           = 1
+	contestUpdateInterval    time.Duration = 1 * time.Hour
+	contestPingCheckInterval time.Duration = 1 * time.Minute
+
+	dbHost string = "db"
+	dbUser string = "postgres"
+	dbName string = "bot_data"
+	dbPort uint16 = 5432
+)
 
 func main() {
 	logFile, err := enableLogFile()
@@ -34,7 +49,8 @@ func main() {
 	}()
 
 	// Connect to database
-	db, err := database.Init()
+	dbPassword := os.Getenv("POSTGRES_PASSWORD")
+	db, err := database.New(context.Background(), dbHost, dbUser, dbPassword, dbName, dbPort)
 	if err != nil {
 		log.Fatal("Could not connect to database: ", err)
 	}
@@ -55,7 +71,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Could not open session with token ", err)
 	}
-
 	// Close session when application exits
 	defer func() {
 		err = session.Close()
@@ -64,10 +79,14 @@ func main() {
 		}
 	}()
 
-	err = codeforces.Init(session)
+	cfClient := codeforces.NewClient(http.DefaultClient, cfAPIRequestsPerSecond, cfAPIMaxBurst,
+		"https://codeforces.com/api/")
+	cf, err := codeforces.NewHandler(db, session, cfClient, session.State.Guilds)
 	if err != nil {
-		log.Fatal("Could not initialize Codeforces package:", err)
+		log.Fatal("Failed to create Codeforces handler:", err)
 	}
+	cf.Contests.StartContestUpdate(contestUpdateInterval)
+	cf.Pinger.StartContestPingCheck(contestPingCheckInterval)
 
 	session.AddHandler(func(session *discordgo.Session, message *discordgo.MessageCreate) {
 		// Don't react to messages from this bot
@@ -92,7 +111,7 @@ func main() {
 			}
 
 		case "cf":
-			err := codeforces.HandleCodeforcesCommands(args, session, message)
+			err := cf.HandleCommand(args, message)
 			if err != nil {
 				log.Println("Codeforces command failed:", err)
 			}
