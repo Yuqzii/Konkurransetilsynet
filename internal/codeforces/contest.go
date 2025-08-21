@@ -15,8 +15,8 @@ import (
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
-type contestEndListener interface {
-	onContestEnd(c *contest)
+type contestFinishListener interface {
+	onContestFinish(c *contest)
 }
 
 type contestProvider interface {
@@ -29,9 +29,10 @@ type contestService struct {
 
 	contestUpdateInterval time.Duration
 
-	contests  []*contest
-	mu        sync.RWMutex
-	listeners []contestEndListener
+	contests      []*contest
+	endedContests map[uint32]struct{}
+	mu            sync.RWMutex
+	listeners     []contestFinishListener
 }
 
 type contestOption func(*contestService)
@@ -70,7 +71,7 @@ func (s *contestService) StartContestUpdate(interval time.Duration) {
 	}()
 }
 
-func (s *contestService) addListener(l contestEndListener) {
+func (s *contestService) addListener(l contestFinishListener) {
 	s.listeners = append(s.listeners, l)
 }
 
@@ -113,7 +114,7 @@ func (s *contestService) updateContests() error {
 	for _, c := range s.contests {
 		hasEnded := t >= int64(c.StartTimeSeconds)+int64(c.DurationSeconds)
 		if hasEnded {
-			go s.onContestEnd(*c)
+			s.endedContests[c.ID] = struct{}{}
 		}
 	}
 
@@ -122,15 +123,31 @@ func (s *contestService) updateContests() error {
 		return err
 	}
 
-	contests, err = filterUpcoming(contests)
-	if err != nil {
-		return err
-	}
+	s.checkContestsFinish(contests)
+	upcoming := filterUpcoming(contests)
 
 	s.mu.Lock()
-	s.contests = contests
+	s.contests = upcoming
 	s.mu.Unlock()
 	return nil
+}
+
+/* Checks all contests in the contests parameter against s.endedContests, and calls onContestFinish
+ * for contests that are finished and exists in s.endedContests.
+ */
+func (s *contestService) checkContestsFinish(contests []*contest) {
+	for _, c := range contests {
+		s.mu.RLock()
+		_, ok := s.endedContests[c.ID]
+		s.mu.RUnlock()
+		if ok && c.Phase == "FINISHED" {
+			go s.onContestFinish(*c)
+
+			s.mu.Lock()
+			delete(s.endedContests, c.ID)
+			s.mu.Unlock()
+		}
+	}
 }
 
 func (s *contestService) getContests() []*contest {
@@ -206,7 +223,7 @@ func (s *contestService) addDebugContest(args []string, m *discordgo.MessageCrea
 }
 
 // Filters out contests that have ended and sorts the result
-func filterUpcoming(contests []*contest) ([]*contest, error) {
+func filterUpcoming(contests []*contest) []*contest {
 	// Find all current or future contests
 	filtered := filterContests(contests, func(contest *contest) bool {
 		return contest.Phase == "BEFORE" || contest.Phase == "CODING"
@@ -217,7 +234,7 @@ func filterUpcoming(contests []*contest) ([]*contest, error) {
 		return filtered[i].StartTimeSeconds < filtered[j].StartTimeSeconds
 	})
 
-	return filtered, nil
+	return filtered
 }
 
 // Filters contests based on the f function argument
@@ -230,8 +247,8 @@ func filterContests(contests []*contest, f func(*contest) bool) (result []*conte
 	return result
 }
 
-func (s *contestService) onContestEnd(c contest) {
+func (s *contestService) onContestFinish(c contest) {
 	for _, l := range s.listeners {
-		l.onContestEnd(&c)
+		l.onContestFinish(&c)
 	}
 }

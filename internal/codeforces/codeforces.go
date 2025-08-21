@@ -107,7 +107,7 @@ func (h *Handler) getGuilds() []*discordgo.Guild {
 	return res
 }
 
-func (h *Handler) onContestEnd(c *contest) {
+func (h *Handler) onContestFinish(c *contest) {
 	ratingUpdates := h.leaderboard.startRatingUpdateCheck(c)
 	for updated := range ratingUpdates {
 		if updated {
