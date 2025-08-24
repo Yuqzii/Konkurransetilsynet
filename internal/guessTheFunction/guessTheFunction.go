@@ -3,8 +3,11 @@ package guessTheFunction
 import (
 	"errors"
 	"fmt"
+	"log"
+	"sort"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/yuqzii/konkurransetilsynet/internal/utils"
@@ -16,6 +19,7 @@ type gtfRound struct {
 	channelID string
 	lb        float64
 	ub        float64
+	guesses   []float64
 }
 
 var activeRounds = make(map[string]gtfRound)
@@ -70,6 +74,7 @@ func startGTFRound(args []string, s *discordgo.Session, m *discordgo.MessageCrea
 		channelID: m.ChannelID,
 		lb:        lwrBound,
 		ub:        uprBound,
+		guesses:   []float64{},
 	}
 	activeRounds[m.ChannelID] = newRound
 
@@ -100,6 +105,13 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 		if !ok {
 			return sendNoActiveRoundMsg(m.ChannelID, s)
 		}
+
+		log.Printf("Received query %f", x)
+		
+		// Store the guess
+		r.guesses = append(r.guesses, x)
+		activeRounds[m.ChannelID] = r
+
 		y := r.expr.Eval(x)
 
 		msgStr := fmt.Sprintf("f(%f) = %f", x, y)
@@ -127,6 +139,38 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 			return sendWrongGuessMsg(m.ChannelID, s)
 		}
 
+	case "table":
+		// Generate a table of values for the function
+		r, ok := activeRounds[m.ChannelID]
+		if !ok {
+			return sendNoActiveRoundMsg(m.ChannelID, s)
+		}
+		
+		log.Printf("Making table with %d guesses", len(r.guesses))
+
+		sort.Float64s(r.guesses)
+
+		// Create table header
+		var sb strings.Builder
+		sb.WriteString("```\n")
+
+		w := tabwriter.NewWriter(&sb, 0, 0, 2, ' ', tabwriter.AlignRight|tabwriter.Debug)
+		
+		fmt.Fprintf(w, "x\tf(x)\t\n")
+		for _, x := range r.guesses {
+			y := r.expr.Eval(x)
+			fmt.Fprintf(w, "%f\t%f\t\n", x, y)
+		}
+
+		// Write to sb
+		w.Flush()
+
+		sb.WriteString("```\n")
+
+		log.Printf("Table:\n%s", sb.String())
+
+		_, err := s.ChannelMessageSend(m.ChannelID, sb.String())
+		return err
 	default:
 		err := utils.UnknownCommand(s, m)
 		return err
