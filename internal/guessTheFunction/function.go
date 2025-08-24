@@ -3,14 +3,14 @@ package guessTheFunction
 // functionDefinition a string which defines the function, mostly simple pythonic syntax
 // returns a Expr type, call .eval(x) to evaluate the function
 func makeNewFunction(functionDefinition string) (expr, error) {
-	tokens, lexError := tokenizeInput(functionDefinition)
-	if lexError != nil {
-		return nil, lexError
+	tokens, err := tokenizeInput(functionDefinition)
+	if err != nil {
+		return nil, err
 	}
 
-	expr, astError := buildAST(tokens)
-	if astError != nil {
-		return nil, astError
+	expr, err := buildAST(tokens)
+	if err != nil {
+		return nil, err
 	}
 
 	return expr, nil

@@ -49,15 +49,15 @@ func startGTFRound(args []string, s *discordgo.Session, m *discordgo.MessageCrea
 	}
 
 	// Parse args
-	funcDef, lwrBound, uprBound, argErr := parseGTFStartRoundArgs(args)
-	if argErr != nil {
-		return fmt.Errorf("failed to parse arguments, %w", argErr)
+	funcDef, lwrBound, uprBound, err := parseGTFStartRoundArgs(args)
+	if err != nil {
+		return fmt.Errorf("parsing arguments: %w", err)
 	}
 
 	// Parse function
-	funcExpr, prsErr := makeNewFunction(funcDef)
-	if prsErr != nil {
-		return fmt.Errorf("failed to parse function: [%s], %w", funcDef, prsErr)
+	funcExpr, err := makeNewFunction(funcDef)
+	if err != nil {
+		return fmt.Errorf("parsing function [%s]: %w", funcDef, err)
 	}
 
 	// Add to active rounds
@@ -71,9 +71,9 @@ func startGTFRound(args []string, s *discordgo.Session, m *discordgo.MessageCrea
 	activeRounds[m.ChannelID] = newRound
 
 	// Confirmation message
-	_, msgErr := s.ChannelMessageSend(m.ChannelID, "GTF Round started!")
-	if msgErr != nil {
-		return fmt.Errorf("failed to send confirmation message, %w", msgErr)
+	_, err = s.ChannelMessageSend(m.ChannelID, "GTF Round started!")
+	if err != nil {
+		return fmt.Errorf("failed to send confirmation message, %w", err)
 	}
 
 	return nil

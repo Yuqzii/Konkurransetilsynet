@@ -124,9 +124,9 @@ func tokenizeInput(input string) ([]Token, error) {
 	input = strings.ReplaceAll(input, " ", "")
 
 	// Find tokens
-	tokens, lexError := lexTokens(input)
-	if lexError != nil {
-		return nil, fmt.Errorf("lexical analysis error: %w", lexError)
+	tokens, err := lexTokens(input)
+	if err != nil {
+		return nil, fmt.Errorf("lexical analysis error: %w", err)
 	}
 
 	return tokens, nil
