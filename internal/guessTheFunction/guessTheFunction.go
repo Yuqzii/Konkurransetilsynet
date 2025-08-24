@@ -1,7 +1,6 @@
 package guessTheFunction
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -20,7 +19,6 @@ type gtfRound struct {
 }
 
 var activeRounds = make(map[string]gtfRound)
-var ErrNoActiveRound = errors.New("no active round in current channel")
 
 func parseGTFStartRoundArgs(args []string) (functionDefinition string, domainLowerBound float64, domainUpperBound float64, err error) {
 	if len(args) < 4 {
@@ -95,7 +93,7 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 
 		r, ok := activeRounds[m.ChannelID]
 		if !ok {
-			return ErrNoActiveRound
+			return sendNoActiveRoundMsg(m.ChannelID, s)
 		}
 		y := r.functionExpr.Eval(x)
 
@@ -112,4 +110,11 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 	}
 
 	return nil
+}
+
+func sendNoActiveRoundMsg(channelID string, s *discordgo.Session) error {
+	msgStr := "There is not an active Guess the Function round in this channel.\n" +
+		"Start a new one with `!gtf start [lower bound] [upper bound] [function definition]`."
+	_, err := s.ChannelMessageSend(channelID, msgStr)
+	return err
 }
