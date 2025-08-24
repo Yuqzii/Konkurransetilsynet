@@ -47,7 +47,7 @@ func sendCorrectGuessMsg(channelID, guessedFunc string, s *discordgo.Session) er
 }
 
 func sendWrongGuessMsg(channelID string, s *discordgo.Session) error {
-	msgStr := fmt.Sprintf("Your guess was incorrect :( (skill issue tbh).")
+	msgStr := "Your guess was incorrect :( (skill issue tbh)."
 	_, err := s.ChannelMessageSend(channelID, msgStr)
 	return err
 }
