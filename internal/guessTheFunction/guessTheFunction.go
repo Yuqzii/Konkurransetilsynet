@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
-	utilCommands "github.com/yuqzii/konkurransetilsynet/internal/utilCommands"
+	"github.com/yuqzii/konkurransetilsynet/internal/utils"
 )
 
 type gtfRound struct {
@@ -128,7 +128,7 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 		}
 
 	default:
-		err := utilCommands.UnknownCommand(s, m)
+		err := utils.UnknownCommand(s, m)
 		return err
 	}
 
