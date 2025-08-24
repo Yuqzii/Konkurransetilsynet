@@ -44,6 +44,11 @@ func startGTFRound(args []string, s *discordgo.Session, m *discordgo.MessageCrea
 		return fmt.Errorf("deleting start message: %w", err)
 	}
 
+	_, active := activeRounds[m.ChannelID]
+	if active {
+		return sendActiveRoundMsg(m.ChannelID, s)
+	}
+
 	// Parse args
 	funcDef, lwrBound, uprBound, err := parseGTFStartRoundArgs(args)
 	if err != nil {
@@ -113,7 +118,9 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 		}
 
 		if correct {
-			return sendCorrectGuessMsg(m.ChannelID, guessFunc, s)
+			err = sendCorrectGuessMsg(m.ChannelID, guessFunc, s)
+			delete(activeRounds, m.ChannelID)
+			return err
 		} else {
 			return sendWrongGuessMsg(m.ChannelID, s)
 		}
@@ -129,6 +136,13 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 func sendNoActiveRoundMsg(channelID string, s *discordgo.Session) error {
 	msgStr := "There is not an active Guess the Function round in this channel.\n" +
 		"Start a new one with `!gtf start [lower bound] [upper bound] [function definition]`."
+	_, err := s.ChannelMessageSend(channelID, msgStr)
+	return err
+}
+
+func sendActiveRoundMsg(channelID string, s *discordgo.Session) error {
+	msgStr := "There is already an active Guess the Function round in this channel. " +
+		"Wait until the function is guessed before starting a new round."
 	_, err := s.ChannelMessageSend(channelID, msgStr)
 	return err
 }
