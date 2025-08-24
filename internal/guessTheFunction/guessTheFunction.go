@@ -42,6 +42,12 @@ func parseGTFStartRoundArgs(args []string) (functionDefinition string, domainLow
 func startGTFRound(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
 	log.Println("starting GTF round!")
 
+	// Delete start message so other users can't see the function
+	err := s.ChannelMessageDelete(m.ChannelID, m.Message.ID)
+	if err != nil {
+		return fmt.Errorf("deleting start message: %w", err)
+	}
+
 	// Parse args
 	funcDef, lwrBound, uprBound, argErr := parseGTFStartRoundArgs(args)
 	if argErr != nil {
