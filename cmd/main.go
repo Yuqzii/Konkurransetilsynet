@@ -116,8 +116,11 @@ func main() {
 				log.Println("Codeforces command failed:", err)
 			}
 
-		case "guessTheFunction":
-			guessTheFunction.HandleGuessTheFunctionCommands(args, session, message)
+		case "guessTheFunction", "gtf":
+			err := guessTheFunction.HandleGuessTheFunctionCommands(args, session, message)
+			if err != nil {
+				log.Println("GuessTheFunction command failed:", err)
+			}
 
 		case "utils":
 			err := utils.HandleUtilCommands(args, session, message)
