@@ -1,12 +1,17 @@
 package guessTheFunction
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"unicode"
 )
 
 type TokenType int
+
+var (
+	ErrLex = errors.New("lexical analysis error")
+)
 
 const (
 	NUMBER_TOKEN TokenType = iota
@@ -110,7 +115,7 @@ func lexTokens(definition string) ([]Token, error) {
 		// Parse operators, parentheses, and variables
 		token, ok := singleTokenTypeMap[ch]
 		if !ok {
-			return nil, fmt.Errorf("unexpected character '%c' in input at position %d", ch, i)
+			return nil, fmt.Errorf("%w: unexpected character '%c' in input at position %d", ErrLex, ch, i)
 		}
 		tokens = append(tokens, token)
 
@@ -126,7 +131,7 @@ func tokenizeInput(input string) ([]Token, error) {
 	// Find tokens
 	tokens, err := lexTokens(input)
 	if err != nil {
-		return nil, fmt.Errorf("lexical analysis error: %w", err)
+		return nil, err
 	}
 
 	return tokens, nil

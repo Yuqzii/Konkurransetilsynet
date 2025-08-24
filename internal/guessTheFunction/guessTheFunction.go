@@ -1,6 +1,7 @@
 package guessTheFunction
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -106,6 +107,11 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 		guessFunc := args[2]
 		correct, err := guess(guessFunc, activeRounds[m.ChannelID])
 		if err != nil {
+			if errors.Is(err, ErrLex) {
+				err = errors.Join(err, sendLexErrMsg(m.ChannelID, s))
+			} else if errors.Is(err, ErrBuildingAST) {
+				err = errors.Join(err, sendASTErrMsg(m.ChannelID, s))
+			}
 			return fmt.Errorf("guessing function: %w", err)
 		}
 
@@ -126,6 +132,18 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 func sendNoActiveRoundMsg(channelID string, s *discordgo.Session) error {
 	msgStr := "There is not an active Guess the Function round in this channel.\n" +
 		"Start a new one with `!gtf start [lower bound] [upper bound] [function definition]`."
+	_, err := s.ChannelMessageSend(channelID, msgStr)
+	return err
+}
+
+func sendLexErrMsg(channelID string, s *discordgo.Session) error {
+	msgStr := "Could not perform lexical analysis on your guess. Make sure it only contains valid characters."
+	_, err := s.ChannelMessageSend(channelID, msgStr)
+	return err
+}
+
+func sendASTErrMsg(channelID string, s *discordgo.Session) error {
+	msgStr := "Could not build an AST from your guess. (your function doesn't make sense, git gud)."
 	_, err := s.ChannelMessageSend(channelID, msgStr)
 	return err
 }
