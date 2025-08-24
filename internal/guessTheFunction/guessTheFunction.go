@@ -43,7 +43,7 @@ func startGTFRound(args []string, s *discordgo.Session, m *discordgo.MessageCrea
 	log.Println("starting GTF round!")
 
 	// Delete start message so other users can't see the function
-	err := s.ChannelMessageDelete(m.ChannelID, m.Message.ID)
+	err := s.ChannelMessageDelete(m.ChannelID, m.ID)
 	if err != nil {
 		return fmt.Errorf("deleting start message: %w", err)
 	}
