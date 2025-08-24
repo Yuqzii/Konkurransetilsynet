@@ -11,11 +11,11 @@ import (
 )
 
 type gtfRound struct {
-	functionDefinition       string
-	functionExpr             expr
-	channelID                string
-	functionDomainLowerBound float64
-	functionDomainUpperBound float64
+	def       string
+	expr      expr
+	channelID string
+	lb        float64
+	ub        float64
 }
 
 var activeRounds = make(map[string]gtfRound)
@@ -60,11 +60,11 @@ func startGTFRound(args []string, s *discordgo.Session, m *discordgo.MessageCrea
 
 	// Add to active rounds
 	newRound := gtfRound{
-		functionDefinition:       funcDef,
-		functionExpr:             funcExpr,
-		channelID:                m.ChannelID,
-		functionDomainLowerBound: lwrBound,
-		functionDomainUpperBound: uprBound,
+		def:       funcDef,
+		expr:      funcExpr,
+		channelID: m.ChannelID,
+		lb:        lwrBound,
+		ub:        uprBound,
 	}
 	activeRounds[m.ChannelID] = newRound
 
@@ -95,7 +95,7 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 		if !ok {
 			return sendNoActiveRoundMsg(m.ChannelID, s)
 		}
-		y := r.functionExpr.Eval(x)
+		y := r.expr.Eval(x)
 
 		msgStr := fmt.Sprintf("f(%f) = %f", x, y)
 		_, err = s.ChannelMessageSend(m.ChannelID, msgStr)
@@ -104,7 +104,7 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 		}
 	case "guess":
 		guessFunc := args[2]
-		correct, err := guess(guessFunc, activeRounds[m.ChannelID].functionExpr)
+		correct, err := guess(guessFunc, activeRounds[m.ChannelID])
 		if err != nil {
 			return fmt.Errorf("guessing function: %w", err)
 		}

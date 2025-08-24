@@ -10,12 +10,10 @@ import (
 
 const (
 	maxErr  float64 = 1e-5
-	minX    float64 = -1000
-	maxX    float64 = 1000
 	samples uint16  = 100
 )
 
-func guess(def string, actual expr) (bool, error) {
+func guess(def string, round gtfRound) (bool, error) {
 	expr, err := makeNewFunction(def)
 	if err != nil {
 		return false, fmt.Errorf("parsing function [%s]: %w", def, err)
@@ -23,10 +21,10 @@ func guess(def string, actual expr) (bool, error) {
 
 	correct := true
 	for range samples {
-		x := rand.Float64()*(maxX+math.Abs(minX)) - minX
+		x := rand.Float64()*(round.ub+math.Abs(round.lb)) - round.lb
 
 		y := expr.Eval(x)
-		correctY := actual.Eval(x)
+		correctY := round.expr.Eval(x)
 
 		absDiff := math.Abs(y - correctY)
 		avg := (y + correctY) / 2
@@ -43,7 +41,7 @@ func guess(def string, actual expr) (bool, error) {
 
 func sendCorrectGuessMsg(channelID, guessedFunc string, s *discordgo.Session) error {
 	msgStr := fmt.Sprintf("Congratulations! You guessed the function!\n"+
-		"Submitted function: `%s`\nYour function: `%s`", activeRounds[channelID].functionDefinition, guessedFunc)
+		"Submitted function: `%s`\nYour function: `%s`", activeRounds[channelID].def, guessedFunc)
 	_, err := s.ChannelMessageSend(channelID, msgStr)
 	return err
 }
