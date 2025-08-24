@@ -20,21 +20,23 @@ type gtfRound struct {
 
 var activeRounds = make(map[string]gtfRound)
 
-func parseGTFStartRoundArgs(args []string) (functionDefinition string, domainLowerBound float64, domainUpperBound float64, err error) {
+func parseGTFStartRoundArgs(args []string) (def string, lb float64, ub float64, err error) {
 	if len(args) < 4 {
 		return "", 0, 0, fmt.Errorf("invalid format, too few arguments")
 	}
 
-	if domainLowerBound, err = strconv.ParseFloat(args[2], 64); err != nil {
+	if lb, err = strconv.ParseFloat(args[2], 64); err != nil {
 		return "", 0, 0, fmt.Errorf("float parsing error, %w", err)
 	}
-	if domainUpperBound, err = strconv.ParseFloat(args[3], 64); err != nil {
+	if ub, err = strconv.ParseFloat(args[3], 64); err != nil {
 		return "", 0, 0, fmt.Errorf("float parsing error, %w", err)
 	}
 
-	functionDefinition = strings.Join(args[4:], "")
+	def = strings.Join(args[4:], "")
+	def = strings.TrimPrefix(def, "||")
+	def = strings.TrimSuffix(def, "||")
 
-	return functionDefinition, domainLowerBound, domainUpperBound, nil
+	return def, lb, ub, nil
 }
 
 func startGTFRound(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
