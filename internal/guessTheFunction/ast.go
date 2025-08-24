@@ -6,6 +6,10 @@ import (
 	"strconv"
 )
 
+var (
+	ErrBuildingAST = errors.New("error generating AST from tokens")
+)
+
 // Order of precedence, lowest to highest
 var precedenceTokenTypes = [3][]TokenType{
 	{ADDITION_TOKEN, SUBTRACTION_TOKEN},
@@ -181,7 +185,7 @@ func buildAST(tokens []Token) (expr, error) {
 	AST, astErr := buildASTRecursive(tokens)
 
 	if astErr != nil {
-		return nil, fmt.Errorf("error generating AST from tokens %v: %w", tokens, astErr)
+		return nil, fmt.Errorf("%w %v: %w", ErrBuildingAST, tokens, astErr)
 	}
 
 	return AST, nil

@@ -1,8 +1,8 @@
 package guessTheFunction
 
 import (
+	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -11,11 +11,11 @@ import (
 )
 
 type gtfRound struct {
-	functionDefinition       string
-	functionExpr             expr
-	channelID                string
-	functionDomainLowerBound float64
-	functionDomainUpperBound float64
+	def       string
+	expr      expr
+	channelID string
+	lb        float64
+	ub        float64
 }
 
 var activeRounds = make(map[string]gtfRound)
@@ -38,12 +38,15 @@ func parseGTFStartRoundArgs(args []string) (functionDefinition string, domainLow
 }
 
 func startGTFRound(args []string, s *discordgo.Session, m *discordgo.MessageCreate) error {
-	log.Println("starting GTF round!")
-
 	// Delete start message so other users can't see the function
 	err := s.ChannelMessageDelete(m.ChannelID, m.ID)
 	if err != nil {
 		return fmt.Errorf("deleting start message: %w", err)
+	}
+
+	_, active := activeRounds[m.ChannelID]
+	if active {
+		return sendActiveRoundMsg(m.ChannelID, s)
 	}
 
 	// Parse args
@@ -60,11 +63,11 @@ func startGTFRound(args []string, s *discordgo.Session, m *discordgo.MessageCrea
 
 	// Add to active rounds
 	newRound := gtfRound{
-		functionDefinition:       funcDef,
-		functionExpr:             funcExpr,
-		channelID:                m.ChannelID,
-		functionDomainLowerBound: lwrBound,
-		functionDomainUpperBound: uprBound,
+		def:       funcDef,
+		expr:      funcExpr,
+		channelID: m.ChannelID,
+		lb:        lwrBound,
+		ub:        uprBound,
 	}
 	activeRounds[m.ChannelID] = newRound
 
@@ -95,7 +98,7 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 		if !ok {
 			return sendNoActiveRoundMsg(m.ChannelID, s)
 		}
-		y := r.functionExpr.Eval(x)
+		y := r.expr.Eval(x)
 
 		msgStr := fmt.Sprintf("f(%f) = %f", x, y)
 		_, err = s.ChannelMessageSend(m.ChannelID, msgStr)
@@ -103,6 +106,24 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 			return err
 		}
 	case "guess":
+		guessFunc := args[2]
+		correct, err := guess(guessFunc, activeRounds[m.ChannelID])
+		if err != nil {
+			if errors.Is(err, ErrLex) {
+				err = errors.Join(err, sendLexErrMsg(m.ChannelID, s))
+			} else if errors.Is(err, ErrBuildingAST) {
+				err = errors.Join(err, sendASTErrMsg(m.ChannelID, s))
+			}
+			return fmt.Errorf("guessing function: %w", err)
+		}
+
+		if correct {
+			err = sendCorrectGuessMsg(m.ChannelID, guessFunc, s)
+			delete(activeRounds, m.ChannelID)
+			return err
+		} else {
+			return sendWrongGuessMsg(m.ChannelID, s)
+		}
 
 	default:
 		err := utilCommands.UnknownCommand(s, m)
@@ -115,6 +136,25 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 func sendNoActiveRoundMsg(channelID string, s *discordgo.Session) error {
 	msgStr := "There is not an active Guess the Function round in this channel.\n" +
 		"Start a new one with `!gtf start [lower bound] [upper bound] [function definition]`."
+	_, err := s.ChannelMessageSend(channelID, msgStr)
+	return err
+}
+
+func sendActiveRoundMsg(channelID string, s *discordgo.Session) error {
+	msgStr := "There is already an active Guess the Function round in this channel. " +
+		"Wait until the function is guessed before starting a new round."
+	_, err := s.ChannelMessageSend(channelID, msgStr)
+	return err
+}
+
+func sendLexErrMsg(channelID string, s *discordgo.Session) error {
+	msgStr := "Could not perform lexical analysis on your guess. Make sure it only contains valid characters."
+	_, err := s.ChannelMessageSend(channelID, msgStr)
+	return err
+}
+
+func sendASTErrMsg(channelID string, s *discordgo.Session) error {
+	msgStr := "Could not build an AST from your guess. (your function doesn't make sense, git gud)."
 	_, err := s.ChannelMessageSend(channelID, msgStr)
 	return err
 }
