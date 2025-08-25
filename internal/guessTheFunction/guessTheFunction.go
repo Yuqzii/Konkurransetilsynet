@@ -108,7 +108,7 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 			return err
 		}
 	case "guess":
-		guessFunc := args[2]
+		guessFunc := strings.Join(args[2:], "")
 		correct, err := guess(guessFunc, activeRounds[m.ChannelID])
 		if err != nil {
 			if errors.Is(err, ErrLex) {
