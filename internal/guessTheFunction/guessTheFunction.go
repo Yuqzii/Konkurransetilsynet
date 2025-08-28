@@ -107,7 +107,7 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 		}
 
 		log.Printf("Received query %f", x)
-		
+
 		// Store the guess
 		r.guesses = append(r.guesses, x)
 		activeRounds[m.ChannelID] = r
@@ -145,7 +145,7 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 		if !ok {
 			return sendNoActiveRoundMsg(m.ChannelID, s)
 		}
-		
+
 		log.Printf("Making table with %d guesses", len(r.guesses))
 
 		sort.Float64s(r.guesses)
@@ -155,7 +155,7 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 		sb.WriteString("```\n")
 
 		w := tabwriter.NewWriter(&sb, 0, 0, 2, ' ', tabwriter.AlignRight|tabwriter.Debug)
-		
+
 		fmt.Fprintf(w, "x\tf(x)\t\n")
 		for _, x := range r.guesses {
 			y := r.expr.Eval(x)
