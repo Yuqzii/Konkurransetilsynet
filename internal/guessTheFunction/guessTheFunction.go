@@ -147,29 +147,38 @@ func HandleGuessTheFunctionCommands(args []string, s *discordgo.Session, m *disc
 		}
 
 		log.Printf("Making table with %d guesses", len(r.guesses))
-
 		sort.Float64s(r.guesses)
 
-		// Create table header
+		// String buf
 		var sb strings.Builder
 		sb.WriteString("```\n")
 
-		w := tabwriter.NewWriter(&sb, 0, 0, 2, ' ', tabwriter.AlignRight|tabwriter.Debug)
+		// Create table header
+		minwidth, tabwidth, padding := 0, 0, 2
+		var padchar byte = ' '
+		w := tabwriter.NewWriter(&sb, minwidth, tabwidth, padding, padchar, tabwriter.AlignRight|tabwriter.Debug)
 
-		fmt.Fprintf(w, "x\tf(x)\t\n")
-		for _, x := range r.guesses {
-			y := r.expr.Eval(x)
-			fmt.Fprintf(w, "%f\t%f\t\n", x, y)
+		if _, err := fmt.Fprintf(w, "x\tf(x)\t\n"); err != nil {
+			return fmt.Errorf("table function: %w", err)
 		}
 
-		// Write to sb
-		w.Flush()
+		for _, x := range r.guesses {
+			y := r.expr.Eval(x)
 
+			if _, err := fmt.Fprintf(w, "%f\t%f\t\n", x, y); err != nil {
+				return fmt.Errorf("table function: %w", err)
+			}
+		}
+
+		// Write to string buff
+		if err := w.Flush(); err != nil {
+			return fmt.Errorf("table function: %w", err)
+		}
 		sb.WriteString("```\n")
 
 		log.Printf("Table:\n%s", sb.String())
-
 		_, err := s.ChannelMessageSend(m.ChannelID, sb.String())
+
 		return err
 	default:
 		err := utils.UnknownCommand(s, m)
