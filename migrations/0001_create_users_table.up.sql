@@ -1,0 +1,23 @@
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS users (
+	discord_id NUMERIC(20) PRIMARY KEY,
+	codeforces_handle VARCHAR(255),
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+	NEW.updated_at = NOW();
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql
+
+CREATE TRIGGER trigger_set_updated_at
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE PROCEDURE set_updated_at();
+
+COMMIT;
