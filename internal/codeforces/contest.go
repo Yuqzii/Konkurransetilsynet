@@ -44,6 +44,7 @@ func newContestService(discord *discordgo.Session, client api, opts ...contestOp
 		discord:               discord,
 		client:                client,
 		contestUpdateInterval: defaultContestUpdateInterval,
+		endedContests:         make(map[uint32]struct{}),
 	}
 
 	for _, opt := range opts {
