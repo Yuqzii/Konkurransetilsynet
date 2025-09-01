@@ -1,3 +1,32 @@
+x-postgres-common: &postgres-common
+  image: postgres:17.5
+  restart: always
+  environment:
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    - POSTGRES_DB=bot_data
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres -d bot_data"]
+    interval: 5s
+    retries: 10
+    start_period: 10s
+    timeout: 10s
+
+x-migrate-common: &migrate-common
+  image: migrate/migrate:v4.19.0
+  volumes:
+    - ./migrations:/migrations:ro,z
+  environment:
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  restart: no
+
+x-migrate-down-common: &migrate-down-common
+  image: migrate/migrate:v4.19.0
+  volumes:
+    - ./migrations:/migrations:ro,z
+  environment:
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  restart: no
+
 services:
   prod-bot:
     build: ./
@@ -5,6 +34,7 @@ services:
     environment:
       - TOKEN=${TOKEN}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=db
     profiles: [prod]
     depends_on:
       migrate:
@@ -17,59 +47,76 @@ services:
       - TOKEN=${TOKEN}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - DEBUG=${DEBUG}
+      - DB_HOST=dev-db
     profiles: [dev]
     depends_on:
-      migrate:
+      dev-migrate:
         condition: service_completed_successfully
 
   db:
-    image: postgres:17.5
-    restart: always
-    environment:
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=bot_data
+    <<: *postgres-common
+    profiles: [prod]
     volumes:
       - konktils-db:/var/lib/postgresql/data 
     ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d bot_data"]
-      interval: 5s
-      retries: 10
-      start_period: 10s
-      timeout: 10s
+      - 5432:5432
+
+  dev-db:
+    <<: *postgres-common
+    profiles: [dev]
+    volumes:
+      - konktils-db-dev:/var/lib/postgresql/data
+    ports:
+      - 5433:5432
 
   migrate:
-    image: migrate/migrate:v4.19.0
+    <<: *migrate-common
+    profiles: [prod]
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./migrations:/migrations:ro,z
-    environment:
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     command: [
-      "-path", "/migrations",
-      "-database", "postgres://postgres:${POSTGRES_PASSWORD}@db:5432/bot_data?sslmode=disable",
-      "up"
+        "-path", "/migrations",
+        "-database", "postgres://postgres:${POSTGRES_PASSWORD}@db:5432/bot_data?sslmode=disable",
+        "up"
     ]
-    restart: "no"
+
+  dev-migrate:
+    <<: *migrate-common
+    profiles: [dev]
+    depends_on:
+      dev-db:
+        condition: service_healthy
+    command: [
+        "-path", "/migrations",
+        "-database", "postgres://postgres:${POSTGRES_PASSWORD}@dev-db:5432/bot_data?sslmode=disable",
+        "up"
+    ]
 
   migrate-down:
-    image: migrate/migrate:v4.19.0
+    <<: *migrate-down-common
     profiles: [migrate-down]
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./migrations:/migrations:ro,z
-    environment:
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     entrypoint: [
-      "migrate", "-path", "/migrations",
-      "-database", "postgres://postgres:${POSTGRES_PASSWORD}@db:5432/bot_data?sslmode=disable",
-      "down"
+        "migrate", "-path", "/migrations",
+        "-database", "postgres://postgres:${POSTGRES_PASSWORD}@db:5432/bot_data?sslmode=disable",
+        "down"
+    ]
+
+  dev-migrate-down:
+    <<: *migrate-down-common
+    profiles: [dev-migrate-down]
+    depends_on:
+      dev-db:
+        condition: service_healthy
+    entrypoint: [
+        "migrate", "-path", "/migrations",
+        "-database", "postgres://postgres:${POSTGRES_PASSWORD}@dev-db:5432/bot_data?sslmode=disable",
+        "down"
     ]
 
 volumes:
   konktils-db:
+  konktils-db-dev:
