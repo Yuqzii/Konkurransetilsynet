@@ -1,9 +1,10 @@
 PROFILE ?= dev
+DETACHED ?= # Set to -d to start as detached (used when deploying)
 
 default: build run
 
 run:
-	docker-compose --profile $(PROFILE) up
+	docker-compose --profile $(PROFILE) up $(DETACHED)
 
 build:
 	docker compose --profile $(PROFILE) build
