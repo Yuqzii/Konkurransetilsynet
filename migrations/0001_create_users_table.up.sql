@@ -13,7 +13,7 @@ BEGIN
 	NEW.updated_at = NOW();
 	RETURN NEW;
 END;
-$$ LANGUAGE plpgsql
+$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trigger_set_updated_at
 BEFORE UPDATE ON users
