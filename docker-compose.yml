@@ -55,5 +55,21 @@ services:
     ]
     restart: "no"
 
+  migrate-down:
+    image: migrate/migrate:v4.19.0
+    profiles: [migrate-down]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations:ro,z
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    entrypoint: [
+      "migrate", "-path", "/migrations",
+      "-database", "postgres://postgres:${POSTGRES_PASSWORD}@db:5432/bot_data?sslmode=disable",
+      "down"
+    ]
+
 volumes:
   konktils-db:
