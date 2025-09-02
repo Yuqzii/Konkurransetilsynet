@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Deploy bot
-        run: docker compose --profile dev up -d --build
+        run: make PROFILE=dev DETACHED=-d
         env:
           TOKEN: ${{ secrets.TOKEN }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}

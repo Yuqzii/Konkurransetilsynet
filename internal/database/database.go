@@ -49,7 +49,7 @@ func connectToDatabase(ctx context.Context, host, user, password, dbName string,
 func (db *db) DiscordIDExists(ctx context.Context, discID string) (bool, error) {
 	var dbDiscID string
 	err := db.conn.QueryRow(ctx,
-		"SELECT discord_id FROM user_data WHERE discord_id=$1;", discID).Scan(&dbDiscID)
+		"SELECT discord_id FROM users WHERE discord_id=$1;", discID).Scan(&dbDiscID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return false, nil
@@ -69,15 +69,15 @@ func (db *db) AddCodeforcesUser(ctx context.Context, discID, handle string) erro
 	defer tx.Rollback(ctx) // nolint: errcheck
 
 	_, err = tx.Exec(ctx,
-		"INSERT INTO user_data (discord_id, codeforces_handle) VALUES ($1, $2);", discID, handle)
+		"INSERT INTO users (discord_id, codeforces_handle) VALUES ($1, $2);", discID, handle)
 	if err != nil {
-		return fmt.Errorf("failed to insert discord id %s and codeforces name '%s' into user_data: %w",
+		return fmt.Errorf("failed to insert discord id %s and codeforces name '%s' into users: %w",
 			discID, handle, err)
 	}
 
 	err = tx.Commit(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to commit insertion to user_data: %w", err)
+		return fmt.Errorf("failed to commit insertion to users: %w", err)
 	}
 	return nil
 }
@@ -90,7 +90,7 @@ func (db *db) UpdateCodeforcesUser(ctx context.Context, discID, handle string) e
 	defer tx.Rollback(ctx) // nolint: errcheck
 
 	_, err = tx.Exec(ctx,
-		"UPDATE user_data SET codeforces_handle=$1 WHERE discord_id=$2;", handle, discID)
+		"UPDATE users SET codeforces_handle=$1 WHERE discord_id=$2;", handle, discID)
 	if err != nil {
 		return fmt.Errorf("failed to update the codeforces handle belonging to discord id %s to '%s': %w",
 			discID, handle, err)
@@ -98,14 +98,14 @@ func (db *db) UpdateCodeforcesUser(ctx context.Context, discID, handle string) e
 
 	err = tx.Commit(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to commit update to user_data: %w", err)
+		return fmt.Errorf("failed to commit update to users: %w", err)
 	}
 	return nil
 }
 
 func (db *db) GetConnectedCodeforces(ctx context.Context, discID string) (connectedHandle string, err error) {
 	err = db.conn.QueryRow(ctx,
-		"SELECT codeforces_handle FROM user_data WHERE discord_id=$1", discID).Scan(&connectedHandle)
+		"SELECT codeforces_handle FROM users WHERE discord_id=$1", discID).Scan(&connectedHandle)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", codeforces.ErrUserNotConnected
 	}
