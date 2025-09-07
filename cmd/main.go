@@ -30,7 +30,6 @@ const (
 	contestUpdateInterval    time.Duration = 1 * time.Hour
 	contestPingCheckInterval time.Duration = 1 * time.Minute
 
-	dbHost string = "db"
 	dbUser string = "postgres"
 	dbName string = "bot_data"
 	dbPort uint16 = 5432
@@ -50,6 +49,7 @@ func main() {
 
 	// Connect to database
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
+	dbHost := os.Getenv("DB_HOST")
 	db, err := database.New(context.Background(), dbHost, dbUser, dbPassword, dbName, dbPort)
 	if err != nil {
 		log.Fatal("Could not connect to database: ", err)
