@@ -1,6 +1,6 @@
 x-postgres-common: &postgres-common
   image: postgres:17.5
-  restart: always
+  restart: "always"
   environment:
     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     - POSTGRES_DB=bot_data
@@ -17,7 +17,7 @@ x-migrate-common: &migrate-common
     - ./migrations:/migrations:ro,z
   environment:
     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-  restart: no
+  restart: "no"
 
 x-migrate-down-common: &migrate-down-common
   image: migrate/migrate:v4.19.0
@@ -25,12 +25,12 @@ x-migrate-down-common: &migrate-down-common
     - ./migrations:/migrations:ro,z
   environment:
     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-  restart: no
+  restart: "no"
 
 services:
   prod-bot:
     build: ./
-    restart: unless-stopped
+    restart: "unless-stopped"
     environment:
       - TOKEN=${TOKEN}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -42,7 +42,7 @@ services:
 
   dev-bot:
     build: ./
-    restart: unless-stopped
+    restart: "unless-stopped"
     environment:
       - TOKEN=${TOKEN}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
