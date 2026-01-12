@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Cron job that checks for updates and rebuilds if it finds any.
+# Takes the compose profile as argument (prod or dev).
 
 set -euo pipefail
 
@@ -20,7 +21,7 @@ echo "Changes detected, pulling updates..."
 git pull origin main
 
 echo "Rebuilding containers..."
-make PROFILE=prod DETACHED=-d PULL=--pull
+make PROFILE=$1 DETACHED=-d PULL=--pull
 
 echo "Cleaning up old images..."
 docker image prune -f
