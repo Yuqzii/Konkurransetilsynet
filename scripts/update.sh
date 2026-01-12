@@ -5,11 +5,9 @@
 
 set -euo pipefail
 
-ENV="${1:-}"
-
 cd "$(dirname "$0")/.."
 
-if [[ "$ENV" == "dev" ]]; then
+if [[ "$1" == "dev" ]]; then
 	echo "Environment: dev (tracking main)"
 
 	git fetch origin main
